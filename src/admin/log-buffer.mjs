@@ -1,21 +1,17 @@
-const LEVEL_ORDER = { error: 0, warn: 1, info: 2, debug: 3, trace: 4 };\nconst SECRET_FIELD = /token|authorization|api[_-]?key|cookie|secret|password/i;
-const BEARER_VALUE = /\\bBearer\\s+[A-Za-z0-9._~+/-]{12,}/gi;
-const TOKEN_ASSIGNMENT = /\\b(userToken|access[_-]?token|api[_-]?key|authorization|cookie|secret|password)\\s*([:=])\\s*([^,\\s;]+)/gi;
+const LEVEL_ORDER = { error: 0, warn: 1, info: 2, debug: 3, trace: 4 };
+const SECRET_FIELD = /token|authorization|api[_-]?key|cookie|secret|password/i;
+const BEARER_VALUE = /\bBearer\s+[A-Za-z0-9._~+/-]{12,}/gi;
+const TOKEN_ASSIGNMENT = /\b(userToken|access[_-]?token|api[_-]?key|authorization|cookie|secret|password)\s*([:=])\s*([^,\s;]+)/gi;
 
 export function createLogBuffer({ maxEntries = 500, maxMessageChars = 4000, secrets = [] } = {}) {
   const entries = [];
   const listeners = new Set();
   const knownSecrets = secrets.filter((value) => typeof value === 'string' && value.length >= 8);
+  let nextId = 1;
 
   function append(level, scope, args) {
     const message = formatArgs(args, knownSecrets).slice(0, maxMessageChars);
-    const entry = {
-      id: entries.length ? entries[entries.length - 1].id + 1 : 1,
-      timestamp: new Date().toISOString(),
-      level,
-      scope,
-      message,
-    };
+    const entry = { id: nextId++, timestamp: new Date().toISOString(), level, scope, message };
     entries.push(entry);
     if (entries.length > maxEntries) entries.splice(0, entries.length - maxEntries);
     for (const listener of listeners) {
@@ -42,13 +38,14 @@ export function createLogBuffer({ maxEntries = 500, maxMessageChars = 4000, secr
 export function createBufferedLogger(logger, buffer) {
   function wrap(target, scope = '') {
     const wrapped = { level: target.level };
+    const threshold = LEVEL_ORDER[target.level] ?? LEVEL_ORDER.info;
     for (const level of ['error', 'warn', 'info', 'debug', 'trace']) {
       wrapped[level] = (...args) => {
-        buffer.append(level, scope, args);
+        if ((LEVEL_ORDER[level] ?? 99) <= threshold) buffer.append(level, scope, args);
         return target[level](...args);
       };
     }
-    wrapped.child = (name) => wrap(target.child(name), scope ? `${scope}:${name}` : String(name));
+    wrapped.child = (name) => wrap(target.child(name), scope ? scope + ':' + name : String(name));
     return wrapped;
   }
   return wrap(logger);
@@ -57,7 +54,7 @@ export function createBufferedLogger(logger, buffer) {
 function formatArgs(args, secrets) {
   return args.map((value) => {
     if (value instanceof Error) {
-      return redactText(`${value.name}: ${value.message}${value.stack ? `\\n${value.stack}` : ''}`, secrets);
+      return redactText(value.name + ': ' + value.message + (value.stack ? '\n' + value.stack : ''), secrets);
     }
     if (typeof value === 'string') return redactText(value, secrets);
     if (value === undefined) return 'undefined';
@@ -73,7 +70,7 @@ function sanitizeValue(value, key, secrets, seen) {
   if (SECRET_FIELD.test(key)) return '[REDACTED]';
   if (typeof value === 'string') return redactText(value, secrets);
   if (value === null || typeof value !== 'object') return value;
-  if (Buffer.isBuffer(value)) return `[Buffer ${value.length} bytes]`;
+  if (Buffer.isBuffer(value)) return '[Buffer ' + value.length + ' bytes]';
   if (seen.has(value)) return '[Circular]';
   seen.add(value);
   if (Array.isArray(value)) return value.map((item) => sanitizeValue(item, '', secrets, seen));
