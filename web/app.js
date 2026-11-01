@@ -1,7 +1,8 @@
 const $ = (id) => document.getElementById(id);
 const pages = ['home','accounts','settings','logs','playground'];
 let toastTimer;
-let adminKey = '';\nlet accountConfigPending = null;
+let adminKey = '';
+let accountConfigPending = null;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1900)}
 function activate(page){
   for(const name of pages){$('page-'+name).classList.toggle('active',name===page)}
