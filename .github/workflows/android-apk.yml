@@ -16,8 +16,10 @@ permissions:
 
 jobs:
   build-arm64:
+    # Node/V8 is a large C++ build. Keep enough time for the first uncached
+    # build; later runs restore the pinned libnode artifact from Actions cache.
+    timeout-minutes: 360
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
