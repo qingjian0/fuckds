@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { createServer } from '../src/server.mjs';
+import { createLogBuffer } from '../src/admin/log-buffer.mjs';
 import { createLogger } from '../src/logger.mjs';
 import { makeConfig } from './helpers/browser.mjs';
 
@@ -54,7 +55,7 @@ function fakeWeb({
 async function withServer(opts, fn) {
   const config = makeConfig({ API_KEY: opts.apiKey ?? '', ...(opts.env ?? {}) });
   if (opts.rootDir) config.rootDir = opts.rootDir;
-  const server = createServer({ config, logger, web: opts.web ?? fakeWeb(), adminKey: opts.adminKey });
+  const server = createServer({ config, logger, web: opts.web ?? fakeWeb(), adminKey: opts.adminKey, logBuffer: opts.logBuffer });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -841,5 +842,24 @@ test('管理 API：配置白名单校验、原子写入并保留 .env 其他内�
       body: JSON.stringify({ values: { apiKey: 'should-not-be-allowed' } }),
     });
     assert.equal(rejected.status, 400);
+  });
+});
+
+
+test('管理 API：日志列表只返回脱敏后的内存日志', async () => {
+  const adminKey = 'admin-logs-test-key-0123456789abcdef';
+  const buffer = createLogBuffer({ secrets: ['raw-log-secret-1234567890'] });
+  buffer.append('info', 'test', ['Authorization: Bearer abcdefghijklmnop']);
+  buffer.append('warn', 'auth', ['userToken=raw-log-secret-1234567890']);
+  await withServer({ adminKey, logBuffer: buffer }, async (base) => {
+    const response = await fetch(`${base}/admin/logs?limit=20`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    const output = JSON.stringify(result);
+    assert.ok(!output.includes('raw-log-secret-1234567890'));
+    assert.ok(!output.includes('abcdefghijklmnop'));
+    assert.equal(result.entries.length, 2);
   });
 });
