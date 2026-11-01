@@ -12,7 +12,7 @@ test('单轮：system + user，按 ## 段落拼接', () => {
     ],
   });
 
-  assert.ok(prompt.startsWith('# MESSAGES:\n## SYSTEM_ROLE_MESSAGE\n'));
+  assert.ok(prompt.startsWith('# MESSAGES:\n## SYSTEM_ROLE_MESSAGE:\n'));
   assert.ok(prompt.includes(SPECIAL_TOKENS_HEADER));
   assert.ok(prompt.includes('你是一个简洁的助手'));
   assert.ok(prompt.includes('## USER_ROLE_MESSAGE:\n你好'));
@@ -175,7 +175,7 @@ test('空 messages 报错', () => {
 
 test('协议声明：只教 DO，不展示 DSML 语法，也不恐吓用户', () => {
   assert.match(SPECIAL_TOKENS_HEADER, /DO:\{"name":/);
-  assert.match(SPECIAL_TOKENS_HEADER, /禁止输出< \\| \\| DSML \\| \\| >/);
+  assert.ok(SPECIAL_TOKENS_HEADER.includes('禁止输出< | | DSML | | >'));
   assert.ok(!SPECIAL_TOKENS_HEADER.includes('封禁'));
   // 只说不许用，不展示任何原生格式的语法
   assert.ok(!SPECIAL_TOKENS_HEADER.includes('<|DSML|'));
