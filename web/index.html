@@ -79,7 +79,16 @@
       </section>
 
       <section class="page" id="page-logs">
-        <div class="empty-card"><div class="empty-icon">≋</div><h2>运行日志</h2><p>实时日志将在脱敏、限量和断线恢复机制完成后开放。</p><span class="status-pill">等待日志流 API</span></div>
+        <div class="panel logs-panel">
+          <div class="section-head"><div><div class="eyebrow">RUNTIME LOGS</div><h2>实时运行日志</h2></div><span class="status-pill">内存缓冲 · 自动脱敏</span></div>
+          <div class="logs-toolbar">
+            <select id="log-level"><option value="all">全部级别</option><option value="error">ERROR</option><option value="warn">WARN</option><option value="info">INFO</option><option value="debug">DEBUG</option><option value="trace">TRACE</option></select>
+            <button id="logs-start" type="button">开始 / 恢复</button><button id="logs-pause" type="button">暂停</button><button id="logs-clear" type="button">清空视图</button>
+          </div>
+          <div id="logs-meta" class="response-meta">请先验证管理密钥，再开始读取日志。</div>
+          <div id="logs-output" class="logs-output" aria-live="polite"></div>
+          <p class="notice">只显示当前进程启动后的最近 500 条日志；清空视图不会删除服务日志。Token、Bearer、API Key、Cookie 等敏感字段会脱敏。</p>
+        </div>
       </section>
 
       <section class="page" id="page-playground">
