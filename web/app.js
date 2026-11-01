@@ -26,6 +26,35 @@ async function loadStatus(){
     for(const id of ['engine-value','uptime-value','pow-value','version-value'])$(id).textContent='—';
   }
 }
+function renderAccounts(data){
+  const host=$('account-summary');
+  if(!host)return;
+  if(data.engine==='direct' && Array.isArray(data.accounts)){
+    if(!data.accounts.length){host.innerHTML='<div class="empty-card"><p>账号池为空。请使用现有 CLI 配置 userToken。</p></div>';return}
+    host.replaceChildren(...data.accounts.map(account=>{
+      const card=document.createElement('article');card.className='account-card';
+      const head=document.createElement('div');head.className='account-head';
+      const name=document.createElement('strong');name.textContent='账号 #'+account.index;
+      const status=document.createElement('span');status.className='status-pill';status.textContent=account.authFailed?'登录态失效':(account.available?'可用':'冷却中');
+      head.append(name,status);
+      const token=document.createElement('code');token.textContent=account.token||'Token 已配置';
+      const stats=document.createElement('div');stats.className='account-stats';
+      for(const [label,value] of [['请求',account.requests],['限流',account.limited],['错误',account.errors],['PoW',account.powReady?'已预热':'未预热'],['会话',account.sessionsReady]]){
+        const item=document.createElement('span');item.textContent=label+'：'+(value??0);stats.append(item);
+      }
+      card.append(head,token,stats);
+      if(account.cooldownMs>0){const cooldown=document.createElement('p');cooldown.className='account-error';cooldown.textContent='剩余冷却 '+Math.ceil(account.cooldownMs/1000)+' 秒';card.append(cooldown)}
+      if(account.lastError){const error=document.createElement('p');error.className='account-error';error.textContent='最近错误：'+account.lastError;card.append(error)}
+      return card;
+    }));
+    return;
+  }
+  const card=document.createElement('article');card.className='account-card';
+  const title=document.createElement('strong');title.textContent='Browser 引擎';
+  const detail=document.createElement('p');detail.textContent='当前引擎使用单一配置登录态；原有 Browser 状态不提供 Direct 账号池的轮换遥测。';
+  const token=document.createElement('span');token.className='status-pill';token.textContent=data.token?'登录态已配置':'尚未配置登录态';
+  card.append(title,detail,token);host.replaceChildren(card);
+}
 function formatDuration(seconds){const s=Math.max(0,Math.floor(seconds));if(s<60)return s+' 秒';if(s<3600)return Math.floor(s/60)+' 分钟';return Math.floor(s/3600)+' 小时 '+Math.floor(s%3600/60)+' 分钟'}
 $('refresh').addEventListener('click',()=>{loadStatus();toast('状态已刷新')});
 document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.origin+button.dataset.copy);toast('接口地址已复制')}catch{toast('复制失败')}}));
