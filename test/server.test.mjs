@@ -727,7 +727,7 @@ test('GET /app serves bundled local mobile UI and static assets', async () => {
     assert.equal(page.status, 200);
     assert.ok(page.headers.get('content-type').includes('text/html'));
     assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
-    assert.match(await page.text(), /fuckds · 本地控制台/);
+    const html = await page.text();\n    assert.match(html, /fuckds · 本地控制台/);\n    assert.match(html, /\\/v1\\/messages\\/count_tokens/);\n    assert.match(html, /id=\"request-body\"/);
 
     const css = await fetch(`${base}/app/app.css`);
     assert.equal(css.status, 200);
