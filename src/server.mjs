@@ -1,6 +1,9 @@
 import http from 'node:http';
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { ApiError } from './errors.mjs';
+import { createAdminApi } from './admin/api.mjs';
 import { createChatRunner } from './chat-runner.mjs';
 import { createAnthropicHandler } from './anthropic/handler.mjs';
 import { anthropicErrorPayload } from './anthropic/response.mjs';
@@ -17,7 +20,7 @@ import { reconcileStreamedText } from './openai/tool-text.mjs';
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
-export function createServer({ config, logger, web }) {
+export function createServer({ config, logger, web, adminKey = process.env.ADMIN_API_KEY || '', logBuffer = null }) {
   const log = logger.child('http');
 
   const server = http.createServer((req, res) => {
@@ -31,6 +34,7 @@ export function createServer({ config, logger, web }) {
   /** 两个协议共用同一套执行逻辑（防自造结果 / 超长转附件） */
   const runChat = createChatRunner({ config, log, web });
   const anthropic = createAnthropicHandler({ config, log, runChat, sendJson });
+  const admin = createAdminApi({ config, web, adminKey, logBuffer });
 
   async function handle(req, res) {
     const started = Date.now();
@@ -55,6 +59,8 @@ export function createServer({ config, logger, web }) {
     });
 
     try {
+      if (url.pathname.startsWith('/admin/')) return await admin.handle(req, res, url);
+
       if (req.method === 'GET' && (url.pathname === '/healthz' || url.pathname === '/health')) {
         return sendJson(res, 200, {
           ok: true,
@@ -63,6 +69,31 @@ export function createServer({ config, logger, web }) {
           ...web.status(),
           version: 1,
         });
+      }
+
+      if (req.method === 'GET' && (url.pathname === '/app' || url.pathname === '/app/' || url.pathname === '/app/app.css' || url.pathname === '/app/app.js')) {
+        const assets = {
+          '/app': ['index.html', 'text/html; charset=utf-8'],
+          '/app/': ['index.html', 'text/html; charset=utf-8'],
+          '/app/app.css': ['app.css', 'text/css; charset=utf-8'],
+          '/app/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+        };
+        const [file, contentType] = assets[url.pathname];
+        try {
+          const body = await readFile(path.join(config.rootDir, 'web', file));
+          res.writeHead(200, {
+            'Content-Type': contentType,
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'no-referrer',
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+          });
+          res.end(body);
+          return;
+        } catch (err) {
+          log.error('读取 WebUI 资源失败:', err.message);
+          return sendJson(res, 500, { error: { message: 'WebUI 资源不可用', type: 'server_error' } });
+        }
       }
 
       if (req.method === 'GET' && url.pathname === '/') {

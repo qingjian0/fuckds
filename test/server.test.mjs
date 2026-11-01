@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { createServer } from '../src/server.mjs';
+import { createLogBuffer } from '../src/admin/log-buffer.mjs';
 import { createLogger } from '../src/logger.mjs';
 import { makeConfig } from './helpers/browser.mjs';
 
@@ -51,7 +54,8 @@ function fakeWeb({
 
 async function withServer(opts, fn) {
   const config = makeConfig({ API_KEY: opts.apiKey ?? '', ...(opts.env ?? {}) });
-  const server = createServer({ config, logger, web: opts.web ?? fakeWeb() });
+  if (opts.rootDir) config.rootDir = opts.rootDir;
+  const server = createServer({ config, logger, web: opts.web ?? fakeWeb(), adminKey: opts.adminKey, logBuffer: opts.logBuffer });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -716,5 +720,146 @@ test('流式：原生 <|tool…|> token 不会出现在 content 增量里', asyn
     const calls = chunks.flatMap((c) => c.choices[0]?.delta?.tool_calls ?? []);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].function.name, 'exec_shell');
+  });
+});
+
+
+
+test('GET /app serves bundled local mobile UI and static assets', async () => {
+  await withServer({}, async (base) => {
+    const page = await fetch(`${base}/app`);
+    assert.equal(page.status, 200);
+    assert.ok(page.headers.get('content-type').includes('text/html'));
+    assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
+    const html = await page.text();
+    assert.match(html, /fuckds · 本地控制台/);
+    assert.match(html, /\/v1\/messages\/count_tokens/);
+    assert.match(html, /id=\"request-body\"/);
+
+    const css = await fetch(`${base}/app/app.css`);
+    assert.equal(css.status, 200);
+    assert.ok(css.headers.get('content-type').includes('text/css'));
+
+    const js = await fetch(`${base}/app/app.js`);
+    assert.equal(js.status, 200);
+    assert.match(js.headers.get('content-type'), /javascript/);
+
+    const unknown = await fetch(`${base}/app/unknown`);
+    assert.equal(unknown.status, 404);
+  });
+});
+
+
+test('管理 API：仅本机 + 独立密钥，账号写入脱敏并要求重启', async () => {
+  const adminKey = 'admin-test-key-0123456789abcdef0123456789';
+  await withServer({
+    adminKey,
+    env: { DATA_DIR: 'test/.artifacts/admin-api-test' },
+  }, async (base) => {
+    const unauthorized = await fetch(`${base}/admin/status`);
+    assert.equal(unauthorized.status, 401);
+
+    const rejectedOrigin = await fetch(`${base}/admin/status`, {
+      headers: { Authorization: `Bearer ${adminKey}`, Origin: 'https://attacker.example' },
+    });
+    assert.equal(rejectedOrigin.status, 403);
+
+    const status = await fetch(`${base}/admin/status`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(status.status, 200);
+    assert.equal((await status.json()).ok, true);
+
+    const secret = 'new-test-user-token-0123456789abcdef';
+    const added = await fetch(`${base}/admin/accounts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', token: secret }),
+    });
+    assert.equal(added.status, 200);
+    const result = await added.json();
+    assert.equal(result.restartRequired, true);
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+
+    const accounts = await fetch(`${base}/admin/accounts`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(accounts.status, 200);
+    assert.ok((await accounts.json()).accounts.length >= 1);
+
+    const removed = await fetch(`${base}/admin/accounts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', index: 1 }),
+    });
+    assert.equal(removed.status, 200);
+    assert.equal((await removed.json()).restartRequired, true);
+  });
+});
+
+test('管理 API：未配置管理密钥时关闭管理接口', async () => {
+  await withServer({}, async (base) => {
+    const response = await fetch(`${base}/admin/status`);
+    assert.equal(response.status, 503);
+  });
+});
+
+
+test('管理 API：配置白名单校验、原子写入并保留 .env 其他内容', async () => {
+  const adminKey = 'admin-config-test-key-0123456789abcdef';
+  const rootDir = path.join(process.cwd(), 'test', '.artifacts', 'admin-config-api');
+  fs.mkdirSync(rootDir, { recursive: true });
+  fs.writeFileSync(path.join(rootDir, '.env'), '# keep this comment\\nENGINE=auto\\nUNKNOWN_SETTING=keep\\n');
+
+  await withServer({ adminKey, rootDir, env: { ENGINE: 'browser' } }, async (base) => {
+    const loaded = await fetch(`${base}/admin/config`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(loaded.status, 200);
+    const config = await loaded.json();
+    assert.ok(config.values.engine);
+
+    const saved = await fetch(`${base}/admin/config`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: { engine: 'direct', thinking: 'never', concurrency: 2 } }),
+    });
+    assert.equal(saved.status, 200);
+    const result = await saved.json();
+    assert.equal(result.restartRequired, true);
+    assert.equal(result.values.engine, 'direct');
+
+    const envText = fs.readFileSync(path.join(rootDir, '.env'), 'utf8');
+    assert.match(envText, /# keep this comment/);
+    assert.match(envText, /ENGINE=direct/);
+    assert.match(envText, /DEEPSEEK_THINKING=never/);
+    assert.match(envText, /CONCURRENCY=2/);
+    assert.match(envText, /UNKNOWN_SETTING=keep/);
+
+    const rejected = await fetch(`${base}/admin/config`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: { apiKey: 'should-not-be-allowed' } }),
+    });
+    assert.equal(rejected.status, 400);
+  });
+});
+
+
+test('管理 API：日志列表只返回脱敏后的内存日志', async () => {
+  const adminKey = 'admin-logs-test-key-0123456789abcdef';
+  const buffer = createLogBuffer({ secrets: ['raw-log-secret-1234567890'] });
+  buffer.append('info', 'test', ['Authorization: Bearer abcdefghijklmnop']);
+  buffer.append('warn', 'auth', ['userToken=raw-log-secret-1234567890']);
+  await withServer({ adminKey, logBuffer: buffer }, async (base) => {
+    const response = await fetch(`${base}/admin/logs?limit=20`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    const output = JSON.stringify(result);
+    assert.ok(!output.includes('raw-log-secret-1234567890'));
+    assert.ok(!output.includes('abcdefghijklmnop'));
+    assert.equal(result.entries.length, 2);
   });
 });

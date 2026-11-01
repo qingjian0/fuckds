@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111820">
+  <title>fuckds · 本地控制台</title>
+  <link rel="stylesheet" href="/app/app.css">
+  <script type="module" src="/app/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <a class="brand" href="/app" aria-label="fuckds 首页"><span class="brand-mark">f</span><span>fuckds</span></a>
+      <nav class="nav" aria-label="主导航">
+        <button class="nav-item active" data-page="home"><span>⌂</span><b>概览</b></button>
+        <button class="nav-item" data-page="accounts"><span>◉</span><b>账号</b></button>
+        <button class="nav-item" data-page="settings"><span>⚙</span><b>配置</b></button>
+        <button class="nav-item" data-page="logs"><span>≋</span><b>日志</b></button>
+        <button class="nav-item" data-page="playground"><span>⌘</span><b>测试台</b></button>
+      </nav>
+      <div class="rail-foot"><span class="local-dot"></span> 本机服务 · Local</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">DEEPSEEK WEB BRIDGE</div><h1 id="page-title">运行概览</h1></div>
+        <button id="refresh" class="icon-button" type="button" aria-label="刷新状态">↻</button>
+      </header>
+
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <div><div class="eyebrow light">LOCAL SERVICE</div><div class="hero-title" id="service-state">正在检查服务</div><p id="service-subtitle">正在读取本地健康状态…</p></div>
+          <div class="hero-orbit"><span></span><i></i></div>
+        </div>
+        <div class="metric-grid">
+          <article class="metric"><span>运行引擎</span><strong id="engine-value">—</strong><small>Engine</small></article>
+          <article class="metric"><span>运行时间</span><strong id="uptime-value">—</strong><small>Uptime</small></article>
+          <article class="metric"><span>PoW 状态</span><strong id="pow-value">—</strong><small>Proof of Work</small></article>
+          <article class="metric"><span>服务版本</span><strong id="version-value">—</strong><small>Health API</small></article>
+        </div>
+        <div class="section-head"><div><div class="eyebrow">QUICK ACCESS</div><h2>接口入口</h2></div><span class="muted">现有 API · 不改变协议</span></div>
+        <div class="endpoint-list">
+          <div class="endpoint"><span class="method">POST</span><code>/v1/chat/completions</code><button data-copy="/v1/chat/completions">复制</button></div>
+          <div class="endpoint"><span class="method">POST</span><code>/v1/messages</code><button data-copy="/v1/messages">复制</button></div>
+          <div class="endpoint"><span class="method get">GET</span><code>/v1/models</code><button data-copy="/v1/models">复制</button></div>
+          <div class="endpoint"><span class="method get">GET</span><code>/healthz</code><button data-copy="/healthz">复制</button></div>
+        </div>
+        <p class="notice">当前版本提供真实健康状态与 API 测试。账号管理、配置写入和实时日志将在独立管理 API 完成后启用，不会伪造可用状态。</p>
+      </section>
+
+      <section class="page" id="page-accounts">
+        <div class="section-head"><div><div class="eyebrow">ACCOUNT POOL</div><h2>账号运行状态</h2></div><span class="muted">只读状态 · Token 已脱敏</span></div>
+        <div id="account-summary" class="account-list"><div class="empty-card"><p>正在读取账号状态…</p></div></div>
+        <section class="panel admin-panel">
+          <div class="section-head"><div><div class="eyebrow">ADMIN ACCESS</div><h2>管理授权</h2></div><span class="status-pill">独立管理密钥</span></div>
+          <label for="admin-key">ADMIN_API_KEY <small>仅保存在当前页面内存</small></label>
+          <input id="admin-key" type="password" autocomplete="off" placeholder="输入 Android 宿主提供的管理密钥">
+          <button id="admin-unlock" class="primary-button" type="button">验证管理权限</button>
+          <div id="account-actions" hidden>
+            <label for="account-token-input">userToken <small>可逐行粘贴多个账号</small></label>
+            <textarea id="account-token-input" rows="3" autocomplete="off" placeholder="粘贴 userToken；每行一个"></textarea>
+            <div class="action-row"><button id="account-add" type="button">追加账号</button><button id="account-replace" type="button">替换账号池</button><button id="account-check" type="button">校验账号池</button></div>
+            <p class="notice">校验会通过现有引擎发起一次真实请求，可能消耗账号额度。账号变更保存后需要重启服务才会被当前引擎加载。</p>
+          </div>
+        </section>
+        <p class="notice">管理 API 只允许本机访问，使用独立密钥，不复用客户端 API_KEY。userToken 只在提交时发送，界面仅显示脱敏值。</p>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="panel config-panel">
+          <div class="section-head"><div><div class="eyebrow">RUNTIME CONFIG</div><h2>运行配置</h2></div><span class="status-pill">白名单配置</span></div>
+          <p class="notice">仅提供原项目已有配置项；不会修改提示词、Agent、工具调用或引擎算法。保存写入 .env，必须重启服务后生效。API Key、userToken、监听地址和任意文件路径不在可编辑范围内。</p>
+          <div class="action-row"><button id="config-load" type="button">读取当前配置</button><button id="config-save" type="button">保存配置</button></div>
+          <label for="config-json">配置 JSON <small>只允许修改服务端提供的白名单字段</small></label>
+          <textarea id="config-json" rows="24" spellcheck="false" placeholder="点击“读取当前配置”加载有效配置…"></textarea>
+          <p id="config-state" class="notice">请先在“账号管理”页验证管理密钥。</p>
+        </div>
+      </section>
+
+      <section class="page" id="page-logs">
+        <div class="panel logs-panel">
+          <div class="section-head"><div><div class="eyebrow">RUNTIME LOGS</div><h2>实时运行日志</h2></div><span class="status-pill">内存缓冲 · 自动脱敏</span></div>
+          <div class="logs-toolbar">
+            <select id="log-level"><option value="all">全部级别</option><option value="error">ERROR</option><option value="warn">WARN</option><option value="info">INFO</option><option value="debug">DEBUG</option><option value="trace">TRACE</option></select>
+            <button id="logs-start" type="button">开始 / 恢复</button><button id="logs-pause" type="button">暂停</button><button id="logs-clear" type="button">清空视图</button>
+          </div>
+          <div id="logs-meta" class="response-meta">请先验证管理密钥，再开始读取日志。</div>
+          <div id="logs-output" class="logs-output" aria-live="polite"></div>
+          <p class="notice">只显示当前进程启动后的最近 500 条日志；清空视图不会删除服务日志。Token、Bearer、API Key、Cookie 等敏感字段会脱敏。</p>
+        </div>
+      </section>
+
+      <section class="page" id="page-playground">
+        <div class="playground-grid">
+          <div class="panel request-panel">
+            <div class="section-head"><div><div class="eyebrow">REQUEST</div><h2>API 请求</h2></div><span class="status-pill">OpenAI · Anthropic</span></div>
+            <label for="endpoint">接口</label>
+            <select id="endpoint">
+              <option value="/v1/chat/completions">OpenAI · Chat Completions</option>
+              <option value="/v1/completions">OpenAI · Completions</option>
+              <option value="/v1/messages">Anthropic · Messages</option>
+              <option value="/v1/messages/count_tokens">Anthropic · Count Tokens</option>
+              <option value="/v1/models">Models</option>
+              <option value="/healthz">Health</option>
+            </select>
+            <label for="api-key">API Key <small>仅保存在当前页面内存</small></label>
+            <input id="api-key" type="password" autocomplete="off" placeholder="API_KEY（未设置时可留空）">
+            <label for="request-body">请求体 JSON <small>可编辑 tools、thinking、图片和流式参数</small></label>
+            <textarea id="request-body" rows="14" spellcheck="false"></textarea>
+            <button id="send" class="primary-button" type="button">发送请求 <span>↗</span></button>
+          </div>
+          <div class="panel response-panel">
+            <div class="section-head"><div><div class="eyebrow">RESPONSE</div><h2>响应结果</h2></div><button id="clear-output" class="text-button" type="button">清空</button></div>
+            <div id="response-meta" class="response-meta">等待请求</div>
+            <pre id="response-output" aria-live="polite">响应内容将在这里显示。</pre>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer"><span>fuckds · Android WebUI Preview</span><span>本地运行 · 不依赖公网前端</span></footer>
+    </main>
+  </div>
+  <nav class="bottom-nav" aria-label="移动端导航">
+    <button class="active" data-page="home"><span>⌂</span>概览</button>
+    <button data-page="accounts"><span>◉</span>账号</button>
+    <button data-page="settings"><span>⚙</span>配置</button>
+    <button data-page="logs"><span>≋</span>日志</button>
+    <button data-page="playground"><span>⌘</span>测试</button>
+  </nav>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
