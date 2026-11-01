@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const pages = ['home','accounts','settings','logs','playground'];
 let toastTimer;
-let adminKey = '';
+let adminKey = '';\nlet accountConfigPending = null;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1900)}
 function activate(page){
   for(const name of pages){$('page-'+name).classList.toggle('active',name===page)}
@@ -40,7 +40,7 @@ async function unlockAdmin(){
   const candidate=$('admin-key').value.trim();
   if(!candidate){toast('请输入管理密钥');return}
   const previous=adminKey;adminKey=candidate;
-  try{await adminRequest('/admin/accounts');$('account-actions').hidden=false;toast('管理权限已验证');loadStatus()}
+  try{accountConfigPending=await adminRequest('/admin/accounts');$('account-actions').hidden=false;toast('管理权限已验证');loadStatus()}
   catch(error){adminKey=previous;$('account-actions').hidden=true;toast(error.message)}
 }
 function readTokenLines(){
@@ -71,16 +71,16 @@ function renderAccounts(data){
   if(!host)return;
   if(data.engine==='direct' && Array.isArray(data.accounts)){
     if(!data.accounts.length){host.innerHTML='<div class="empty-card"><p>账号池为空。请使用现有 CLI 配置 userToken。</p></div>';return}
-    host.replaceChildren(...data.accounts.map(account=>{
+    host.replaceChildren(...accounts.map(account=>{
       const card=document.createElement('article');card.className='account-card';
       const head=document.createElement('div');head.className='account-head';
       const name=document.createElement('strong');name.textContent='账号 #'+account.index;
-      const status=document.createElement('span');status.className='status-pill';status.textContent=account.authFailed?'登录态失效':(account.available?'可用':'冷却中');
+      const status=document.createElement('span');status.className='status-pill';status.textContent=accountConfigPending?.restartRequired?'待重启':(account.statusUnavailable?'状态不可用':(account.authFailed?'登录态失效':(account.available?'可用':'冷却中')));
       head.append(name,status);
       const token=document.createElement('code');token.textContent=account.token||'Token 已配置';
       const stats=document.createElement('div');stats.className='account-stats';
       for(const [label,value] of [['请求',account.requests],['限流',account.limited],['错误',account.errors],['PoW',account.powReady?'已预热':'未预热'],['会话',account.sessionsReady]]){
-        const item=document.createElement('span');item.textContent=label+'：'+(value??0);stats.append(item);
+        const item=document.createElement('span');item.textContent=label+'：'+(account.statusUnavailable?'—':(value??0));stats.append(item);
       }
       card.append(head,token,stats);
       if(account.cooldownMs>0){const cooldown=document.createElement('p');cooldown.className='account-error';cooldown.textContent='剩余冷却 '+Math.ceil(account.cooldownMs/1000)+' 秒';card.append(cooldown)}
@@ -98,7 +98,7 @@ function renderAccounts(data){
 }
 async function removeAccount(index){
   if(!confirm('确定移除账号 #'+index+'？当前运行中的引擎需要重启后生效。'))return;
-  try{const result=await adminRequest('/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',index})});toast(result.message||'账号已移除，需要重启服务');loadStatus()}
+  try{const result=await adminRequest('/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',index})});accountConfigPending=await adminRequest('/admin/accounts');toast(result.message||'账号已移除，需要重启服务');loadStatus()}
   catch(error){toast(error.message)}
 }
 function formatDuration(seconds){const s=Math.max(0,Math.floor(seconds));if(s<60)return s+' 秒';if(s<3600)return Math.floor(s/60)+' 分钟';return Math.floor(s/3600)+' 小时 '+Math.floor(s%3600/60)+' 分钟'}
