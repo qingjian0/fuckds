@@ -36,7 +36,7 @@ test('超限：较早段落进附件，正文保留最新段落并在预算内',
   assert.match(plan.prompt, /最后一个问题：用一句话总结/);
   assert.ok(!plan.prompt.includes('问题0：'), '最早的问题应该离开正文');
   assert.match(text, /问题0：/);
-  assert.match(text, /## USER_ROLE_MESSAGE:/);
+  assert.match(text, /## USER_ROLE_MESSAGES:/);
   assert.match(plan.attachment.name, /^context-[0-9a-f]{8}\.txt$/);
   assert.equal(plan.attachment.mime, 'text/plain');
   assert.ok(plan.attachment.sections > 0);
@@ -46,7 +46,7 @@ test('超限：较早段落进附件，正文保留最新段落并在预算内',
 test('超限：system 段和工具声明始终留在正文', () => {
   const prompt = multiTurnPrompt(8, 3000);
   const plan = planOverflow(prompt, { maxChars: 12_000 });
-  assert.match(plan.prompt, /## SYSTEM_ROLE_MESSAGE/);
+  assert.match(plan.prompt, /## SYSTEM_ROLE_MESSAGES/);
   assert.match(plan.prompt, /## TOOL_FUNCTIONS:/);
   assert.match(plan.prompt, /"name":"exec_shell"/);
   assert.ok(plan.prompt.indexOf('## TOOL_FUNCTIONS:') < plan.prompt.indexOf('## CONTEXT_ATTACHMENT:'));
@@ -75,7 +75,7 @@ test('最后一段自己就超长：保留尾部，前面进附件', () => {
   assert.match(text, /BIGSTART/);
   assert.match(plan.prompt, /本段较长/);
   // 工具结果段的收尾提示不能被拆丢
-  assert.match(plan.prompt, /SYSTEM_ROLE_MESSAGES:注意不要输出其他工具调用token/);
+  assert.match(plan.prompt, /以上结果由系统注入/);
 });
 
 test('附件超过上限时报错', () => {
