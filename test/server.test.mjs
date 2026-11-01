@@ -719,3 +719,25 @@ test('流式：原生 <|tool…|> token 不会出现在 content 增量里', asyn
   });
 });
 
+
+
+test('GET /app serves bundled local mobile UI and static assets', async () => {
+  await withServer({}, async (base) => {
+    const page = await fetch(`${base}/app`);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type'), /text\\/html/);
+    assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
+    assert.match(await page.text(), /fuckds · 本地控制台/);
+
+    const css = await fetch(`${base}/app/app.css`);
+    assert.equal(css.status, 200);
+    assert.match(css.headers.get('content-type'), /text\\/css/);
+
+    const js = await fetch(`${base}/app/app.js`);
+    assert.equal(js.status, 200);
+    assert.match(js.headers.get('content-type'), /javascript/);
+
+    const unknown = await fetch(`${base}/app/unknown`);
+    assert.equal(unknown.status, 404);
+  });
+});
