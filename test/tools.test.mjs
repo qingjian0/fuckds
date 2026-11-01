@@ -89,7 +89,7 @@ test('render: 工具声明忽略没有名字的项', () => {
 
 test('render: RESULT 行', () => {
   const line = renderToolResult('exec_shell', 'Linux');
-  const parsed = JSON.parse(line);
+  const parsed = JSON.parse(line.slice('RESULT:'.length));
   assert.deepEqual(parsed, { name: 'exec_shell', result: 'Linux' });
 });
 
