@@ -3,6 +3,10 @@ const pages = ['home','accounts','settings','logs','playground'];
 let toastTimer;
 let adminKey = '';
 let accountConfigPending = null;
+let logAbortController = null;
+let logPaused = true;
+let logEntries = [];
+let logAfter = 0;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1900)}
 function activate(page){
   for(const name of pages){$('page-'+name).classList.toggle('active',name===page)}
@@ -64,6 +68,72 @@ async function checkAccountPool(){
   try{const result=await adminRequest('/admin/accounts/check',{method:'POST'});toast(result.ok?'账号池校验成功':'账号池校验未通过')}
   catch(error){toast(error.message)}
 }
+function renderLogs(){
+  const host=$('logs-output');
+  host.replaceChildren(...logEntries.map(entry=>{
+    const row=document.createElement('article');row.className='log-row level-'+entry.level;
+    const meta=document.createElement('div');meta.className='log-row-meta';
+    const time=document.createElement('time');time.textContent=entry.timestamp;
+    const level=document.createElement('strong');level.textContent=entry.level.toUpperCase();
+    const scope=document.createElement('span');scope.textContent=entry.scope||'app';
+    meta.append(time,level,scope);
+    const message=document.createElement('pre');message.textContent=entry.message;
+    row.append(meta,message);return row;
+  }));
+  host.scrollTop=host.scrollHeight;
+}
+function appendLog(entry){
+  if(logEntries.some(item=>item.id===entry.id))return;
+  logEntries.push(entry);logEntries.sort((a,b)=>a.id-b.id);
+  if(logEntries.length>500)logEntries=logEntries.slice(-500);
+  logAfter=Math.max(logAfter,entry.id);renderLogs();
+}
+async function loadLogs(){
+  const level=$('log-level').value;
+  const result=await adminRequest('/admin/logs?limit=200&level='+encodeURIComponent(level));
+  logEntries=result.entries||[];logAfter=result.nextAfter||logAfter;renderLogs();
+}
+async function runLogStream(){
+  while(!logPaused && adminKey){
+    const controller=new AbortController();logAbortController=controller;
+    try{
+      const level=$('log-level').value;
+      const response=await fetch('/admin/logs/stream?after='+logAfter+'&level='+encodeURIComponent(level),{headers:{Authorization:'Bearer '+adminKey},signal:controller.signal});
+      if(!response.ok)throw new Error('日志流 HTTP '+response.status);
+      const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+      $('logs-meta').textContent='实时连接中 · 最近 '+logEntries.length+' 条';
+      while(!logPaused){
+        const {value,done}=await reader.read();if(done)break;
+        buffer+=decoder.decode(value,{stream:true});
+        const blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()??'';
+        for(const block of blocks){
+          const data=block.split(/\r?\n/).filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n');
+          if(!data)continue;
+          try{appendLog(JSON.parse(data))}catch{}
+        }
+      }
+    }catch(error){
+      if(!logPaused)$('logs-meta').textContent='日志连接中断，正在重连…';
+    }
+    if(!logPaused)await new Promise(resolve=>setTimeout(resolve,1200));
+  }
+}
+async function startLogs(){
+  if(!adminKey){toast('请先在账号管理页验证管理密钥');return}
+  logPaused=true;logAbortController?.abort();
+  try{
+    await loadLogs();logPaused=false;
+    $('logs-meta').textContent='已连接，等待新日志…';
+    runLogStream();
+  }catch(error){$('logs-meta').textContent=error.message;toast(error.message)}
+}
+function pauseLogs(){
+  logPaused=true;logAbortController?.abort();$('logs-meta').textContent='已暂停 · '+logEntries.length+' 条';
+}
+$('logs-start').addEventListener('click',startLogs);
+$('logs-pause').addEventListener('click',pauseLogs);
+$('logs-clear').addEventListener('click',()=>{logEntries=[];renderLogs();$('logs-meta').textContent='视图已清空；服务端日志未删除'});
+$('log-level').addEventListener('change',()=>{if(!logPaused)startLogs();else loadLogs().catch(error=>toast(error.message))});
 async function loadRuntimeConfig(){
   try{
     const result=await adminRequest('/admin/config');
