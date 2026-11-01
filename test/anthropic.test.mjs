@@ -226,7 +226,7 @@ test('Anthropic：tool_use / tool_result 历史转换成 DO + TOOL_RESULT 段', 
     // 历史里的 tool_use 会渲染成 DO 块（对外唯一协议，不再用 DSML）
     assert.match(web.lastPrompt, /DO:\{"name":"exec_shell","args":\{"command":"uname -r"\}\}/);
     assert.ok(!web.lastPrompt.includes('<|DSML|'), '历史里不该再出现 DSML');
-    assert.ok(web.lastPrompt.includes('< |  | TOOL_CALL_RESULT | | >:'), '工具结果应进入独立结果段');
+    assert.match(web.lastPrompt, /## TOOL_RESULT_MESSAGES/);
     assert.match(web.lastPrompt, /6\.1\.0/);
     // 工具结果不能混进 assistant 段
     const assistantSection = web.lastPrompt.split('## ASSISTANT_ROLE_MESSAGES:')[1]?.split('## TOOL_RESULT_MESSAGES')[0] ?? '';
