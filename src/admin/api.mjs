@@ -5,7 +5,8 @@ import { loadTokens, maskToken, normalizeUserToken, saveTokens } from '../auth.m
 
 const MAX_ADMIN_BODY_BYTES = 64 * 1024;
 
-export function createAdminApi({ config, web, adminKey = '' }) {\n  let restartRequired = false;
+export function createAdminApi({ config, web, adminKey = '' }) {
+  let restartRequired = false;
   async function handle(req, res, url) {
     if (!url.pathname.startsWith('/admin/')) return false;
 
