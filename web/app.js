@@ -47,6 +47,7 @@ function readTokenLines(){
   return $('account-token-input').value.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean);
 }
 async function mutateAccounts(action){
+  if(action==='replace' && !confirm('这会替换整个账号池，当前运行中的引擎需重启后生效。继续吗？'))return;
   try{
     const payload={action};
     if(action==='add'||action==='replace')payload.tokens=readTokenLines();
