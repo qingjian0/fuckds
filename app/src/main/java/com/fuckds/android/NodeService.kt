@@ -59,6 +59,7 @@ class NodeService : Service() {
             val compileCache = File(cacheDir, "node-compile-cache").apply { mkdirs() }
             val apiKey = loadOrCreateKey("api.key")
             val adminKey = loadOrCreateKey("admin.key")
+            val engineMode = readEnvValue(File(engineDir, ".env"), "ENGINE") ?: "auto"
             val args = arrayOf("node", File(engineDir, "src/index.mjs").absolutePath)
             val env = arrayOf(
                 "FUCKDS_ENGINE_DIR=${engineDir.absolutePath}",
@@ -70,7 +71,7 @@ class NodeService : Service() {
                 "UV_THREADPOOL_SIZE=2",
                 "HOST=127.0.0.1",
                 "PORT=8787",
-                "ENGINE=auto",
+                "ENGINE=$engineMode",
                 "WARMUP=false",
                 "API_KEY=$apiKey",
                 "ADMIN_API_KEY=$adminKey"
@@ -80,6 +81,19 @@ class NodeService : Service() {
             Log.w(TAG, "Node event loop exited: $exit")
         } catch (error: Throwable) {
             Log.e(TAG, "Node startup failed", error)
+        }
+    }
+
+    private fun readEnvValue(file: File, key: String): String? {
+        if (!file.isFile) return null
+        val prefix = "$key="
+        return file.useLines { lines ->
+            lines.map { it.trim() }
+                .firstOrNull { it.startsWith(prefix) && !it.startsWith("#") }
+                ?.substringAfter("=", "")
+                ?.trim()
+                ?.removeSurrounding("\\\"")
+                ?.removeSurrounding("\\'")
         }
     }
 
