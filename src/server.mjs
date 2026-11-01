@@ -392,9 +392,11 @@ function escapeHtml(s) {
 }
 
 export function landingPage(config) {
+  // Never embed the configured API key in this unauthenticated HTML page.
+  // Users must insert their own key into the example locally.
   const example = `curl http://${config.server.host}:${config.server.port}/v1/chat/completions \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${config.server.apiKey || 'any'}" \\
+  -H "Authorization: Bearer ${config.server.apiKey ? 'YOUR_API_KEY' : 'any'}" \\
   -d '{
     "model": "deepseek-flash",
     "stream": true,
@@ -405,7 +407,7 @@ export function landingPage(config) {
   }'`;
   const anthropicExample = `curl http://${config.server.host}:${config.server.port}/v1/messages \\
   -H "Content-Type: application/json" \\
-  -H "x-api-key: ${config.server.apiKey || 'any'}" \\
+  -H "x-api-key: ${config.server.apiKey ? 'YOUR_API_KEY' : 'any'}" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{
     "model": "deepseek-flash",
