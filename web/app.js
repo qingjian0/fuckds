@@ -107,27 +107,70 @@ function formatDuration(seconds){const s=Math.max(0,Math.floor(seconds));if(s<60
 $('refresh').addEventListener('click',()=>{loadStatus();toast('状态已刷新')});
 document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.origin+button.dataset.copy);toast('接口地址已复制')}catch{toast('复制失败')}}));
 $('clear-output').addEventListener('click',()=>{$('response-output').textContent='';$('response-meta').textContent='已清空'});
+const requestSamples={
+  '/v1/chat/completions':{model:'deepseek-flash',stream:true,messages:[{role:'user',content:'你好，请用一句话介绍自己。'}]},
+  '/v1/completions':{model:'deepseek-flash',prompt:'用一句话介绍自己。',stream:true},
+  '/v1/messages':{model:'deepseek-flash',max_tokens:1024,stream:true,messages:[{role:'user',content:'你好，请用一句话介绍自己。'}]},
+  '/v1/messages/count_tokens':{model:'deepseek-flash',max_tokens:1024,messages:[{role:'user',content:'估算这条消息的 token 数。'}]},
+};
+function updateRequestSample(){
+  const endpoint=$('endpoint').value;
+  $('request-body').disabled=endpoint==='/v1/models'||endpoint==='/healthz';
+  $('request-body').value=requestSamples[endpoint]?JSON.stringify(requestSamples[endpoint],null,2):'';
+}
+$('endpoint').addEventListener('change',updateRequestSample);
+updateRequestSample();
 $('send').addEventListener('click',sendRequest);
+function sseData(block){
+  const lines=block.split(/\\r?\\n/);
+  const event=lines.find(line=>line.startsWith('event:'))?.slice(6).trim()||'message';
+  const data=lines.filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\\n');
+  return {event,data};
+}
 async function sendRequest(){
   const button=$('send'),output=$('response-output'),meta=$('response-meta');
-  const prompt=$('prompt').value.trim(),model=$('model').value.trim()||'deepseek-flash',stream=$('stream').checked,key=$('api-key').value;
-  if(!prompt){toast('请先输入提示词');return}
-  button.disabled=true;button.textContent='请求中…';output.textContent='';meta.textContent='连接本地 API…';
+  const endpoint=$('endpoint').value,key=$('api-key').value;
+  const method=(endpoint==='/v1/models'||endpoint==='/healthz')?'GET':'POST';
+  let requestBody=null;
+  if(method==='POST'){
+    try{requestBody=JSON.parse($('request-body').value)}catch(error){toast('请求体 JSON 格式错误：'+error.message);return}
+    if(!requestBody||typeof requestBody!=='object'||Array.isArray(requestBody)){toast('请求体必须是 JSON 对象');return}
+  }
+  const anthropic=endpoint.startsWith('/v1/messages');
+  const headers={};
+  if(method==='POST')headers['Content-Type']='application/json';
+  if(key){if(anthropic){headers['x-api-key']=key;headers['anthropic-version']='2023-06-01'}else{headers.Authorization='Bearer '+key}}
+  button.disabled=true;button.textContent='请求中…';output.textContent='';meta.textContent=method+' '+endpoint+' · 连接中…';
   const started=performance.now();
   try{
-    const headers={'Content-Type':'application/json'};
-    if(key)headers.Authorization='Bearer '+key;
-    const response=await fetch('/v1/chat/completions',{method:'POST',headers,body:JSON.stringify({model,stream,messages:[{role:'user',content:prompt}]})});
-    if(!response.ok){const body=await response.text();throw new Error('HTTP '+response.status+' · '+body.slice(0,1200))}
-    if(!stream){const data=await response.json();output.textContent=data.choices?.[0]?.message?.content??JSON.stringify(data,null,2);meta.textContent='完成 · '+Math.round(performance.now()-started)+' ms';return}
-    if(!response.body)throw new Error('当前浏览器不支持流式响应');
-    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',content='';
-    while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const blocks=buffer.split('\n\n');buffer=blocks.pop()??'';
-      for(const block of blocks){for(const line of block.split('\n')){if(!line.startsWith('data:'))continue;const payload=line.slice(5).trim();if(!payload||payload==='[DONE]')continue;let item;try{item=JSON.parse(payload)}catch{continue}const delta=item.choices?.[0]?.delta;if(delta?.content){content+=delta.content;output.textContent=content}if(item.error)throw new Error(item.error.message??'流式请求失败')}}
-      meta.textContent='接收中 · '+content.length+' 字符';
+    const response=await fetch(endpoint,{method,headers,body:method==='POST'?JSON.stringify(requestBody):undefined});
+    const contentType=response.headers.get('content-type')||'';
+    if(!response.ok){const body=await response.text();output.textContent=body;meta.textContent='HTTP '+response.status+' · '+Math.round(performance.now()-started)+' ms';return}
+    if(!contentType.includes('text/event-stream')){
+      const text=await response.text();
+      try{output.textContent=JSON.stringify(JSON.parse(text),null,2)}catch{output.textContent=text}
+      meta.textContent='HTTP '+response.status+' · '+Math.round(performance.now()-started)+' ms';
+      return;
     }
-    meta.textContent='完成 · '+content.length+' 字符 · '+Math.round(performance.now()-started)+' ms';
-  }catch(error){output.textContent=error.message;meta.textContent='请求失败';}
+    if(!response.body)throw new Error('当前 WebView 不支持流式响应');
+    const reader=response.body.getReader(),decoder=new TextDecoder();
+    let buffer='',events=0;
+    while(true){
+      const {value,done}=await reader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true});
+      const blocks=buffer.split(/\\r?\\n\\r?\\n/);
+      buffer=blocks.pop()??'';
+      for(const block of blocks){
+        if(!block.trim())continue;
+        const item=sseData(block);events++;
+        output.textContent+=((output.textContent?'\\n\\n':'' )+(item.event==='message'?'':'event: '+item.event+'\\n')+'data: '+item.data);
+      }
+      meta.textContent='HTTP '+response.status+' · '+events+' 个 SSE 事件 · '+Math.round(performance.now()-started)+' ms';
+    }
+    if(buffer.trim()){const item=sseData(buffer);output.textContent+='\\n\\n'+(item.event==='message'?'':'event: '+item.event+'\\n')+'data: '+item.data;events++}
+    meta.textContent='HTTP '+response.status+' · '+events+' 个 SSE 事件 · 完成 · '+Math.round(performance.now()-started)+' ms';
+  }catch(error){output.textContent=error.message;meta.textContent='请求失败'}
   finally{button.disabled=false;button.innerHTML='发送请求 <span>↗</span>'}
 }
 loadStatus();
