@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "com.fuckds.android"
     compileSdk = 35
-    ndkVersion = "24.0.8215888"
+    ndkVersion = "27.3.13750724"
 
     defaultConfig {
         applicationId = "com.fuckds.android"
