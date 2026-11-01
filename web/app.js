@@ -64,6 +64,27 @@ async function checkAccountPool(){
   try{const result=await adminRequest('/admin/accounts/check',{method:'POST'});toast(result.ok?'账号池校验成功':'账号池校验未通过')}
   catch(error){toast(error.message)}
 }
+async function loadRuntimeConfig(){
+  try{
+    const result=await adminRequest('/admin/config');
+    $('config-json').value=JSON.stringify(result.values,null,2);
+    $('config-state').textContent=result.restartRequired?'有尚未重启生效的配置变更。':'当前配置已加载。';
+  }catch(error){$('config-state').textContent=error.message;toast(error.message)}
+}
+async function saveRuntimeConfig(){
+  let values;
+  try{values=JSON.parse($('config-json').value)}catch(error){toast('配置 JSON 格式错误：'+error.message);return}
+  if(!values||typeof values!=='object'||Array.isArray(values)){toast('配置必须是 JSON 对象');return}
+  if(!confirm('保存后会写入 .env；当前服务不会热更新，需要重启后生效。继续吗？'))return;
+  try{
+    const result=await adminRequest('/admin/config',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({values})});
+    $('config-json').value=JSON.stringify(result.values,null,2);
+    $('config-state').textContent=result.message||'配置已保存，等待重启。';
+    toast('配置已保存，重启后生效');
+  }catch(error){$('config-state').textContent=error.message;toast(error.message)}
+}
+$('config-load').addEventListener('click',loadRuntimeConfig);
+$('config-save').addEventListener('click',saveRuntimeConfig);
 $('admin-unlock').addEventListener('click',unlockAdmin);
 $('account-add').addEventListener('click',()=>mutateAccounts('add'));
 $('account-replace').addEventListener('click',()=>mutateAccounts('replace'));
