@@ -78,14 +78,20 @@
       <section class="page" id="page-playground">
         <div class="playground-grid">
           <div class="panel request-panel">
-            <div class="section-head"><div><div class="eyebrow">REQUEST</div><h2>请求参数</h2></div><span class="status-pill">OpenAI</span></div>
+            <div class="section-head"><div><div class="eyebrow">REQUEST</div><h2>API 请求</h2></div><span class="status-pill">OpenAI · Anthropic</span></div>
+            <label for="endpoint">接口</label>
+            <select id="endpoint">
+              <option value="/v1/chat/completions">OpenAI · Chat Completions</option>
+              <option value="/v1/completions">OpenAI · Completions</option>
+              <option value="/v1/messages">Anthropic · Messages</option>
+              <option value="/v1/messages/count_tokens">Anthropic · Count Tokens</option>
+              <option value="/v1/models">Models</option>
+              <option value="/healthz">Health</option>
+            </select>
             <label for="api-key">API Key <small>仅保存在当前页面内存</small></label>
             <input id="api-key" type="password" autocomplete="off" placeholder="API_KEY（未设置时可留空）">
-            <label for="model">模型</label>
-            <input id="model" value="deepseek-flash" autocomplete="off">
-            <label for="prompt">提示词</label>
-            <textarea id="prompt" rows="5" placeholder="输入一条测试消息…">你好，请用一句话介绍自己。</textarea>
-            <label class="check"><input id="stream" type="checkbox" checked> 流式输出（SSE）</label>
+            <label for="request-body">请求体 JSON <small>可编辑 tools、thinking、图片和流式参数</small></label>
+            <textarea id="request-body" rows="14" spellcheck="false"></textarea>
             <button id="send" class="primary-button" type="button">发送请求 <span>↗</span></button>
           </div>
           <div class="panel response-panel">
