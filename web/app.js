@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const pages = ['home','accounts','settings','logs','playground'];
-let toastTimer;
+let toastTimer;\nlet adminKey = '';
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1900)}
 function activate(page){
   for(const name of pages){$('page-'+name).classList.toggle('active',name===page)}
@@ -27,6 +27,44 @@ async function loadStatus(){
     for(const id of ['engine-value','uptime-value','pow-value','version-value'])$(id).textContent='—';
   }
 }
+async function adminRequest(path,options={}){
+  if(!adminKey)throw new Error('请先验证管理密钥');
+  const headers={...(options.headers||{}),Authorization:'Bearer '+adminKey};
+  const response=await fetch(path,{...options,headers});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error?.message||('HTTP '+response.status));
+  return payload;
+}
+async function unlockAdmin(){
+  const candidate=$('admin-key').value.trim();
+  if(!candidate){toast('请输入管理密钥');return}
+  const previous=adminKey;adminKey=candidate;
+  try{await adminRequest('/admin/accounts');$('account-actions').hidden=false;toast('管理权限已验证');loadStatus()}
+  catch(error){adminKey=previous;$('account-actions').hidden=true;toast(error.message)}
+}
+function readTokenLines(){
+  return $('account-token-input').value.split(/[\\r\\n,;]+/).map(x=>x.trim()).filter(Boolean);
+}
+async function mutateAccounts(action){
+  try{
+    const payload={action};
+    if(action==='add'||action==='replace')payload.tokens=readTokenLines();
+    if(action==='remove')return;
+    const result=await adminRequest('/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    toast(result.message||'账号配置已保存，需要重启服务');
+    $('account-token-input').value='';
+    loadStatus();
+  }catch(error){toast(error.message)}
+}
+async function checkAccountPool(){
+  if(!confirm('将通过当前引擎发送一次真实 DeepSeek 测试请求，可能消耗账号额度。继续吗？'))return;
+  try{const result=await adminRequest('/admin/accounts/check',{method:'POST'});toast(result.ok?'账号池校验成功':'账号池校验未通过')}
+  catch(error){toast(error.message)}
+}
+$('admin-unlock').addEventListener('click',unlockAdmin);
+$('account-add').addEventListener('click',()=>mutateAccounts('add'));
+$('account-replace').addEventListener('click',()=>mutateAccounts('replace'));
+$('account-check').addEventListener('click',checkAccountPool);
 function renderAccounts(data){
   const host=$('account-summary');
   if(!host)return;
@@ -55,6 +93,11 @@ function renderAccounts(data){
   const detail=document.createElement('p');detail.textContent='当前引擎使用单一配置登录态；原有 Browser 状态不提供 Direct 账号池的轮换遥测。';
   const token=document.createElement('span');token.className='status-pill';token.textContent=data.token?'登录态已配置':'尚未配置登录态';
   card.append(title,detail,token);host.replaceChildren(card);
+}
+async function removeAccount(index){
+  if(!confirm('确定移除账号 #'+index+'？当前运行中的引擎需要重启后生效。'))return;
+  try{const result=await adminRequest('/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',index})});toast(result.message||'账号已移除，需要重启服务');loadStatus()}
+  catch(error){toast(error.message)}
 }
 function formatDuration(seconds){const s=Math.max(0,Math.floor(seconds));if(s<60)return s+' 秒';if(s<3600)return Math.floor(s/60)+' 分钟';return Math.floor(s/3600)+' 小时 '+Math.floor(s%3600/60)+' 分钟'}
 $('refresh').addEventListener('click',()=>{loadStatus();toast('状态已刷新')});
