@@ -18,8 +18,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
-      - run: npm test
+      - run: node --test --test-concurrency=1 test/*.test.mjs
 
   go:
     runs-on: ubuntu-latest
