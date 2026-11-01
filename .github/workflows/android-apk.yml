@@ -43,8 +43,8 @@ jobs:
 
       - name: Install Android toolchain
         run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/24.0.8215888" >> "$GITHUB_ENV"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
