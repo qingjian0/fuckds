@@ -89,10 +89,10 @@ class NodeService : Service() {
         val prefix = "$key="
         return file.useLines { lines ->
             lines.map { it.trim() }
-                .firstOrNull { it.startsWith(prefix) && !it.startsWith("#") }
+                .firstOrNull { it.startsWith(prefix) }
                 ?.substringAfter("=", "")
                 ?.trim()
-                ?.removeSurrounding("\\\"")
+                ?.removeSurrounding("\"")
                 ?.removeSurrounding("'")
         }
     }
