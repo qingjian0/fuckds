@@ -15,7 +15,7 @@
     "dev": "node --watch src/index.mjs",
     "auth": "node scripts/auth.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "test": "node --test --test-concurrency=1 'test/**/*.test.mjs'",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "setup:deps": "bash scripts/install-chromium-deps.sh",
     "setup:browser": "playwright install chromium",
     "up": "node scripts/server-ctl.mjs up",
