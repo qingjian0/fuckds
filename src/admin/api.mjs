@@ -45,7 +45,7 @@ export function createAdminApi({ config, web, adminKey = '' }) {
       } catch (err) {
         return sendJson(res, err.status || 400, { error: { code: 'invalid_body', message: err.message } });
       }
-      return mutateAccounts(body);
+      return mutateAccounts(body, res);
     }
 
     if (req.method === 'POST' && url.pathname === '/admin/accounts/check') {
@@ -98,7 +98,7 @@ export function createAdminApi({ config, web, adminKey = '' }) {
     };
   }
 
-  function mutateAccounts(body) {
+  function mutateAccounts(body, res) {
     const envManaged = Boolean(process.env.DEEPSEEK_USER_TOKENS || process.env.DEEPSEEK_USER_TOKEN);
     if (envManaged) {
       return sendJson(res, 409, { error: { code: 'accounts_env_managed', message: '账号由环境变量管理，请在原配置来源修改' } });
