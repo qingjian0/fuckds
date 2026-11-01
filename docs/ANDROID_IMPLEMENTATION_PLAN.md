@@ -3,6 +3,23 @@
 Baseline: qingjian0/fuckds master @ 11f80cbcd3a7ce07a5705066c7f193541a106ceb
 Branch: feat/android-native-webui
 
+## Non-negotiable preservation boundary
+
+This work is an Android packaging, host-integration and presentation project. It is not a product/core rewrite.
+
+The following existing behavior is frozen and must not be edited as part of Android UI work:
+- Reverse proxying, upstream request construction, endpoint mapping, headers, cookies, retry behavior and streaming transformations.
+- Prompt construction, prompt templates, token/overflow handling, tool-call serialization and conversation history.
+- Agent orchestration, tool execution, account selection/rotation, authentication semantics and DeepSeek web protocol.
+- Direct/Browser engine semantics, PoW algorithm and existing desktop process behavior.
+- Existing public API routes, request/response schemas, status codes and error formats.
+
+Permitted changes are limited to additive Android host code, WebView/container code, mobile presentation assets, platform-specific runtime adapters behind existing interfaces, and new isolated management endpoints only when required for UI operations. Any unavoidable core adapter must be opt-in/platform-gated, preserve the desktop implementation byte-for-byte where practical, and pass existing compatibility tests.
+
+Do not rename, remove, simplify, replace, or stub any existing feature. Do not substitute placeholder screens for an existing capability. The UI must expose the existing real operations; if an operation lacks a safe management API, first design an additive adapter without changing the engine contract.
+
+Before every implementation batch, compare changed paths against this boundary. Changes to protected core paths require explicit justification and must be rejected if not strictly necessary for Android integration.
+
 ## Release strategy
 
 Keep the current desktop distribution working. Android is an additional target and must not force desktop users to adopt an embedded runtime or alter existing API defaults.
