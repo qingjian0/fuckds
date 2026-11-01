@@ -10,7 +10,7 @@ import {
   runColdStartSequence,
   typingDelay,
 } from './fingerprint.mjs';
-import { PowSolver } from './pow.mjs';
+import { createPowSolver } from './pow.mjs';
 import { applyPatch, createSseParser, createStreamState } from './stream.mjs';
 
 const COMPLETION_PATH = '/api/v0/chat/completion';
@@ -85,7 +85,7 @@ export class DirectEngine {
       : [config.deepseek.token].filter(Boolean);
 
     this.pool = new AccountPool({ tokens: this.tokens, dataDir: config.dataDir, logger });
-    this.pow = new PowSolver({ bin: config.direct.powBin, logger });
+    this.pow = createPowSolver({ bin: config.direct.powBin, logger });
     this.fileCache = new Map();
     this.inflight = 0;
     this.closed = false;

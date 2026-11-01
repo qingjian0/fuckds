@@ -4,3 +4,4 @@ data/
 *.log
 test/.artifacts/
 bin/
+build/android-pow/

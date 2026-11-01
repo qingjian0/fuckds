@@ -15,7 +15,9 @@ export function createEngine({ config, logger }) {
 
   const wantDirect = engine !== 'browser';
   const binExists = fs.existsSync(config.direct.powBin);
-  const canDirect = binExists && Boolean(config.deepseek.token);
+  const androidWasmExists = Boolean(process.versions.mobile) &&
+    fs.existsSync(new URL('../bin/ds-pow.wasm', import.meta.url));
+  const canDirect = (binExists || androidWasmExists) && Boolean(config.deepseek.token);
 
   if (wantDirect && canDirect) {
     return new DirectEngine({ config, logger: logger.child('direct') });
@@ -23,11 +25,11 @@ export function createEngine({ config, logger }) {
 
   if (engine === 'direct') {
     throw new Error(
-      `ENGINE=direct 但条件不满足：powBin=${config.direct.powBin}（存在=${binExists}），token=${Boolean(config.deepseek.token)}。先执行 npm run pow:build`,
+      `ENGINE=direct 但条件不满足：powBin=${config.direct.powBin}（存在=${binExists}），Android WASM=${androidWasmExists}，token=${Boolean(config.deepseek.token)}。先构建 PoW 并配置账号`,
     );
   }
   if (wantDirect) {
-    logger.warn('没有可用的 Go PoW 求解器（npm run pow:build），回退到 Playwright 引擎');
+    logger.warn('没有可用的 PoW 求解器，回退到 Playwright 引擎');
   }
   return new DeepSeekWeb({ config, logger: logger.child('web') });
 }

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
+import { AndroidPowSolver } from './pow-android.mjs';
 
 /**
  * Go 版 PoW 求解器（bin/ds-pow）的进程封装。
@@ -88,4 +89,14 @@ export class PowSolver {
     for (const { reject } of this.pending.values()) reject(new Error('PoW 求解器已关闭'));
     this.pending.clear();
   }
+}
+
+
+/** Keep desktop process-based PoW unchanged; Android uses the same Go package compiled to WASM. */
+export function createPowSolver(options) {
+  if (process.versions.mobile) {
+    // The Android runtime has no supported child-process execution path.
+    return new AndroidPowSolver(options);
+  }
+  return new PowSolver(options);
 }
