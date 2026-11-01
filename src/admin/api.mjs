@@ -48,7 +48,17 @@ export function createAdminApi({ config, web, adminKey = '' }) {
       let body;
       try {
         body = await readJson(req);
-        const updates = normalizeConfigUpdates(body?.values ?? body);
+        const requested = normalizeConfigUpdates(body?.values ?? body);
+        const current = { ...readConfigValues(config), ...configOverrides };
+        const updates = Object.fromEntries(Object.entries(requested).filter(([name, value]) => value !== current[name]));
+        if (!Object.keys(updates).length) {
+          return sendJson(res, 200, {
+            ok: true,
+            restartRequired: Object.keys(configOverrides).length > 0,
+            message: '配置没有变化',
+            values: current,
+          });
+        }
         writeEnvPatch(config.rootDir, updates);
         configOverrides = { ...configOverrides, ...updates };
         return sendJson(res, 200, {
