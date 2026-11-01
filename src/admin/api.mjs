@@ -5,7 +5,7 @@ import { loadTokens, maskToken, normalizeUserToken, saveTokens } from '../auth.m
 
 const MAX_ADMIN_BODY_BYTES = 64 * 1024;
 
-export function createAdminApi({ config, web, adminKey = '' }) {
+export function createAdminApi({ config, web, adminKey = '' }) {\n  let restartRequired = false;
   async function handle(req, res, url) {
     if (!url.pathname.startsWith('/admin/')) return false;
 
@@ -75,25 +75,19 @@ export function createAdminApi({ config, web, adminKey = '' }) {
 
   function accountPayload() {
     const status = web.status();
-    const tokens = config.deepseek.tokens || [];
     const envManaged = Boolean(process.env.DEEPSEEK_USER_TOKENS || process.env.DEEPSEEK_USER_TOKEN);
-    const accounts = Array.isArray(status.accounts)
-      ? status.accounts
-      : tokens.map((token, index) => ({
-          index: index + 1,
-          token: maskToken(token),
-          available: true,
-          cooldownMs: 0,
-          requests: null,
-          limited: null,
-          errors: null,
-          authFailed: false,
-          statusUnavailable: true,
-        }));
+    const tokens = envManaged ? (config.deepseek.tokens || []) : loadTokens(config);
+    const runtimeByIndex = new Map((status.accounts || []).map((account) => [account.index, account]));
+    const accounts = tokens.map((token, index) => ({
+      index: index + 1,
+      token: maskToken(token),
+      ...(restartRequired ? {} : (runtimeByIndex.get(index + 1) || {})),
+      statusUnavailable: restartRequired || !runtimeByIndex.has(index + 1),
+    }));
     return {
       engine: status.engine,
       envManaged,
-      restartRequired: false,
+      restartRequired,
       accounts,
     };
   }
