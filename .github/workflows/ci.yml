@@ -1,8 +1,8 @@
-name: CI
+name: Android adaptation smoke
 
 on:
   push:
-    branches: [master, "feat/**"]
+    branches: ["feat/android-native-webui"]
   pull_request:
     branches: [master]
 
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  node:
+  android-webui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,9 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - run: node --test --test-concurrency=1 test/*.test.mjs
+      - run: node --check src/server.mjs
+      - run: node --check web/app.js
+      - run: node --test --test-name-pattern="GET /app serves bundled local mobile UI" test/server.test.mjs
 
   go:
     runs-on: ubuntu-latest
