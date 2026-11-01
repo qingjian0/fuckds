@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - uses: android-actions/setup-android@v3
         with:
@@ -38,6 +40,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.23.x"
+          cache: true
 
       - name: Run existing Go PoW tests
         run: go test ./...
@@ -55,7 +58,19 @@ jobs:
         with:
           gradle-version: 8.11.1
 
+      # libnode is the expensive, pinned native dependency. Cache the final
+      # ARM64 library and its matching headers, not the mutable build tree.
+      - name: Cache Node.js Mobile ARM64 runtime
+        id: node-mobile-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/app/src/main/jniLibs/arm64-v8a/libnode.so
+            android/app/src/main/cpp/node/include/node
+          key: node-mobile-d4aedf536d035bf4eeab7a7a6e18b73d154d0ea5-ndk27.3.13750724-arm64-v1
+
       - name: Prepare Node.js Mobile source and build ARM64 libnode
+        if: steps.node-mobile-cache.outputs.cache-hit != 'true'
         run: |
           git init "$RUNNER_TEMP/nodejs-mobile"
           cd "$RUNNER_TEMP/nodejs-mobile"
@@ -69,6 +84,11 @@ jobs:
           cp out_android/arm64-v8a/libnode.so "$GITHUB_WORKSPACE/android/app/src/main/jniLibs/arm64-v8a/libnode.so"
           mkdir -p "$GITHUB_WORKSPACE/android/app/src/main/cpp/node/include"
           cp -R include/node "$GITHUB_WORKSPACE/android/app/src/main/cpp/node/include/node"
+
+      - name: Verify cached or freshly built Node.js runtime
+        run: |
+          test -s android/app/src/main/jniLibs/arm64-v8a/libnode.so
+          test -f android/app/src/main/cpp/node/include/node/node.h
 
       - name: Install engine dependencies
         run: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --omit=dev
