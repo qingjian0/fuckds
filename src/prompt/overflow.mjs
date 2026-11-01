@@ -16,7 +16,7 @@ import { PromptTooLongError } from '../errors.mjs';
  * - 正文再留一点余量（reserve），给重试时的额外约束文案用。
  */
 
-const SECTION_START = /\n(?:## (?:USER_ROLE_MESSAGES?:|ASSISTANT_ROLE_MESSAGES?:|TOOL_RESULT_MESSAGES:)|<\\s*\\|\\s*\\|\\s*TOOL_CALL_RESULT\\s*\\|\\s*\\|\\s*>:)/g;
+const SECTION_START = /\n(?:## (?:USER_ROLE_MESSAGES?:|ASSISTANT_ROLE_MESSAGES?:|TOOL_RESULT_MESSAGES:)|<\s*\|\s*\|\s*TOOL_CALL_RESULT\s*\|\s*\|\s*>:)/g;
 
 const DEFAULT_RESERVE = 1024;
 const NAME_PREFIX = 'context-';
