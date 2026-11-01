@@ -20,8 +20,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check src/server.mjs
+      - run: node --check src/admin/api.mjs
       - run: node --check web/app.js
-      - run: node --test --test-name-pattern="GET /app serves bundled local mobile UI" test/server.test.mjs
+      - run: node --test --test-name-pattern="GET /app serves bundled local mobile UI|管理 API：" test/server.test.mjs
 
   go:
     runs-on: ubuntu-latest
