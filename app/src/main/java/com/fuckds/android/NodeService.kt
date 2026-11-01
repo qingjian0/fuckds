@@ -93,7 +93,7 @@ class NodeService : Service() {
                 ?.substringAfter("=", "")
                 ?.trim()
                 ?.removeSurrounding("\\\"")
-                ?.removeSurrounding("\\'")
+                ?.removeSurrounding("'")
         }
     }
 
