@@ -808,9 +808,9 @@ test('管理 API：配置白名单校验、原子写入并保留 .env 其他内�
   const adminKey = 'admin-config-test-key-0123456789abcdef';
   const rootDir = path.join(process.cwd(), 'test', '.artifacts', 'admin-config-api');
   fs.mkdirSync(rootDir, { recursive: true });
-  fs.writeFileSync(path.join(rootDir, '.env'), '# keep this comment\\nENGINE=browser\\nUNKNOWN_SETTING=keep\\n');
+  fs.writeFileSync(path.join(rootDir, '.env'), '# keep this comment\\nENGINE=auto\\nUNKNOWN_SETTING=keep\\n');
 
-  await withServer({ adminKey, rootDir }, async (base) => {
+  await withServer({ adminKey, rootDir, env: { ENGINE: 'browser' } }, async (base) => {
     const loaded = await fetch(`${base}/admin/config`, {
       headers: { Authorization: `Bearer ${adminKey}` },
     });
