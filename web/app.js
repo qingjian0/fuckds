@@ -19,8 +19,9 @@ async function loadStatus(){
     subtitle.textContent='本地 HTTP 健康检查成功 · PID '+(data.pid??'未知');
     $('engine-value').textContent=data.engine??'—';
     $('uptime-value').textContent=Number.isFinite(data.uptime_s)?formatDuration(data.uptime_s):'—';
-    $('pow-value').textContent=data.pow?'Ready':(data.pow_ready?'Ready':'—');
+    if(data.engine==='direct' && Array.isArray(data.accounts)){const ready=data.accounts.filter(a=>a.powReady).length;$('pow-value').textContent=ready+'/'+data.accounts.length+' 就绪'}else{$('pow-value').textContent='不适用'}
     $('version-value').textContent=data.version??'—';
+    renderAccounts(data);
   }catch(error){
     state.textContent='服务不可用';state.style.color='#ff897f';subtitle.textContent=error.message;
     for(const id of ['engine-value','uptime-value','pow-value','version-value'])$(id).textContent='—';
