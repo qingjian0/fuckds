@@ -68,7 +68,14 @@
       </section>
 
       <section class="page" id="page-settings">
-        <div class="empty-card"><div class="empty-icon">⚙</div><h2>运行配置</h2><p>配置读取与写入需要白名单校验、原子持久化和受控重启。此页面暂不提供虚假的保存按钮。</p><span class="status-pill">等待配置管理 API</span></div>
+        <div class="panel config-panel">
+          <div class="section-head"><div><div class="eyebrow">RUNTIME CONFIG</div><h2>运行配置</h2></div><span class="status-pill">白名单配置</span></div>
+          <p class="notice">仅提供原项目已有配置项；不会修改提示词、Agent、工具调用或引擎算法。保存写入 .env，必须重启服务后生效。API Key、userToken、监听地址和任意文件路径不在可编辑范围内。</p>
+          <div class="action-row"><button id="config-load" type="button">读取当前配置</button><button id="config-save" type="button">保存配置</button></div>
+          <label for="config-json">配置 JSON <small>只允许修改服务端提供的白名单字段</small></label>
+          <textarea id="config-json" rows="24" spellcheck="false" placeholder="点击“读取当前配置”加载有效配置…"></textarea>
+          <p id="config-state" class="notice">请先在“账号管理”页验证管理密钥。</p>
+        </div>
       </section>
 
       <section class="page" id="page-logs">
