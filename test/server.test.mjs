@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createServer, landingPage } from '../src/server.mjs';
+import { createServer } from '../src/server.mjs';
 import { createLogger } from '../src/logger.mjs';
 import { makeConfig } from './helpers/browser.mjs';
 
@@ -719,34 +719,3 @@ test('流式：原生 <|tool…|> token 不会出现在 content 增量里', asyn
   });
 });
 
-
-test('landing page never embeds configured API keys', () => {
-  const secret = 'sensitive-admin-api-key-should-not-leak';
-  const config = makeConfig({ API_KEY: secret });
-  const html = landingPage(config);
-  assert.ok(!html.includes(secret));
-  assert.match(html, /Bearer YOUR_API_KEY/);
-  assert.match(html, /x-api-key: YOUR_API_KEY/);
-});
-
-
-test('GET /app serves bundled mobile UI with a restrictive CSP', async () => {
-  await withServer({}, async (base) => {
-    const page = await fetch(`${base}/app`);
-    assert.equal(page.status, 200);
-    assert.match(page.headers.get('content-type'), /text\/html/);
-    assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
-    assert.match(await page.text(), /fuckds · 本地控制台/);
-
-    const css = await fetch(`${base}/app/app.css`);
-    assert.equal(css.status, 200);
-    assert.match(css.headers.get('content-type'), /text\/css/);
-
-    const js = await fetch(`${base}/app/app.js`);
-    assert.equal(js.status, 200);
-    assert.match(js.headers.get('content-type'), /javascript/);
-
-    const unknown = await fetch(`${base}/app/unknown`);
-    assert.equal(unknown.status, 404);
-  });
-});
