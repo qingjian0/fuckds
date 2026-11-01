@@ -50,7 +50,9 @@
       </section>
 
       <section class="page" id="page-accounts">
-        <div class="empty-card"><div class="empty-icon">◉</div><h2>账号管理</h2><p>账号池管理接口尚未接入。当前不会把 userToken 暴露给前端。</p><span class="status-pill">等待安全管理 API</span></div>
+        <div class="section-head"><div><div class="eyebrow">ACCOUNT POOL</div><h2>账号运行状态</h2></div><span class="muted">只读状态 · Token 已脱敏</span></div>
+        <div id="account-summary" class="account-list"><div class="empty-card"><p>正在读取账号状态…</p></div></div>
+        <p class="notice">此处读取原有 /healthz 提供的运行状态。新增、替换、删除和校验账号需要独立管理 API，完成安全鉴权前不会开放写入操作。</p>
       </section>
 
       <section class="page" id="page-settings">
