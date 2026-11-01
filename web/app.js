@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const pages = ['home','accounts','settings','logs','playground'];
-let toastTimer;\nlet adminKey = '';
+let toastTimer;
+let adminKey = '';
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1900)}
 function activate(page){
   for(const name of pages){$('page-'+name).classList.toggle('active',name===page)}
@@ -43,7 +44,7 @@ async function unlockAdmin(){
   catch(error){adminKey=previous;$('account-actions').hidden=true;toast(error.message)}
 }
 function readTokenLines(){
-  return $('account-token-input').value.split(/[\\r\\n,;]+/).map(x=>x.trim()).filter(Boolean);
+  return $('account-token-input').value.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean);
 }
 async function mutateAccounts(action){
   try{
@@ -84,6 +85,7 @@ function renderAccounts(data){
       card.append(head,token,stats);
       if(account.cooldownMs>0){const cooldown=document.createElement('p');cooldown.className='account-error';cooldown.textContent='剩余冷却 '+Math.ceil(account.cooldownMs/1000)+' 秒';card.append(cooldown)}
       if(account.lastError){const error=document.createElement('p');error.className='account-error';error.textContent='最近错误：'+account.lastError;card.append(error)}
+      if(adminKey){const remove=document.createElement('button');remove.type='button';remove.className='remove-account';remove.textContent='移除';remove.addEventListener('click',()=>removeAccount(account.index));card.append(remove)}
       return card;
     }));
     return;
