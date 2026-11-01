@@ -51,7 +51,7 @@ function fakeWeb({
 
 async function withServer(opts, fn) {
   const config = makeConfig({ API_KEY: opts.apiKey ?? '', ...(opts.env ?? {}) });
-  const server = createServer({ config, logger, web: opts.web ?? fakeWeb() });
+  const server = createServer({ config, logger, web: opts.web ?? fakeWeb(), adminKey: opts.adminKey });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -739,5 +739,60 @@ test('GET /app serves bundled local mobile UI and static assets', async () => {
 
     const unknown = await fetch(`${base}/app/unknown`);
     assert.equal(unknown.status, 404);
+  });
+});
+
+
+test('管理 API：仅本机 + 独立密钥，账号写入脱敏并要求重启', async () => {
+  const adminKey = 'admin-test-key-0123456789abcdef0123456789';
+  await withServer({
+    adminKey,
+    env: { DATA_DIR: 'test/.artifacts/admin-api-test' },
+  }, async (base) => {
+    const unauthorized = await fetch(`${base}/admin/status`);
+    assert.equal(unauthorized.status, 401);
+
+    const rejectedOrigin = await fetch(`${base}/admin/status`, {
+      headers: { Authorization: `Bearer ${adminKey}`, Origin: 'https://attacker.example' },
+    });
+    assert.equal(rejectedOrigin.status, 403);
+
+    const status = await fetch(`${base}/admin/status`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(status.status, 200);
+    assert.equal((await status.json()).ok, true);
+
+    const secret = 'new-test-user-token-0123456789abcdef';
+    const added = await fetch(`${base}/admin/accounts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', token: secret }),
+    });
+    assert.equal(added.status, 200);
+    const result = await added.json();
+    assert.equal(result.restartRequired, true);
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+
+    const accounts = await fetch(`${base}/admin/accounts`, {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    assert.equal(accounts.status, 200);
+    assert.ok((await accounts.json()).accounts.length >= 1);
+
+    const removed = await fetch(`${base}/admin/accounts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', index: 1 }),
+    });
+    assert.equal(removed.status, 200);
+    assert.equal((await removed.json()).restartRequired, true);
+  });
+});
+
+test('管理 API：未配置管理密钥时关闭管理接口', async () => {
+  await withServer({}, async (base) => {
+    const response = await fetch(`${base}/admin/status`);
+    assert.equal(response.status, 503);
   });
 });
