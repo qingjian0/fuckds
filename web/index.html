@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111820">
+  <title>fuckds · 本地控制台</title>
+  <link rel="stylesheet" href="/app/app.css">
+  <script type="module" src="/app/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <a class="brand" href="/app" aria-label="fuckds 首页"><span class="brand-mark">f</span><span>fuckds</span></a>
+      <nav class="nav" aria-label="主导航">
+        <button class="nav-item active" data-page="home"><span>⌂</span><b>概览</b></button>
+        <button class="nav-item" data-page="accounts"><span>◉</span><b>账号</b></button>
+        <button class="nav-item" data-page="settings"><span>⚙</span><b>配置</b></button>
+        <button class="nav-item" data-page="logs"><span>≋</span><b>日志</b></button>
+        <button class="nav-item" data-page="playground"><span>⌘</span><b>测试台</b></button>
+      </nav>
+      <div class="rail-foot"><span class="local-dot"></span> 本机服务 · Local</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">DEEPSEEK WEB BRIDGE</div><h1 id="page-title">运行概览</h1></div>
+        <button id="refresh" class="icon-button" type="button" aria-label="刷新状态">↻</button>
+      </header>
+
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <div><div class="eyebrow light">LOCAL SERVICE</div><div class="hero-title" id="service-state">正在检查服务</div><p id="service-subtitle">正在读取本地健康状态…</p></div>
+          <div class="hero-orbit"><span></span><i></i></div>
+        </div>
+        <div class="metric-grid">
+          <article class="metric"><span>运行引擎</span><strong id="engine-value">—</strong><small>Engine</small></article>
+          <article class="metric"><span>运行时间</span><strong id="uptime-value">—</strong><small>Uptime</small></article>
+          <article class="metric"><span>PoW 状态</span><strong id="pow-value">—</strong><small>Proof of Work</small></article>
+          <article class="metric"><span>服务版本</span><strong id="version-value">—</strong><small>Health API</small></article>
+        </div>
+        <div class="section-head"><div><div class="eyebrow">QUICK ACCESS</div><h2>接口入口</h2></div><span class="muted">现有 API · 不改变协议</span></div>
+        <div class="endpoint-list">
+          <div class="endpoint"><span class="method">POST</span><code>/v1/chat/completions</code><button data-copy="/v1/chat/completions">复制</button></div>
+          <div class="endpoint"><span class="method">POST</span><code>/v1/messages</code><button data-copy="/v1/messages">复制</button></div>
+          <div class="endpoint"><span class="method get">GET</span><code>/v1/models</code><button data-copy="/v1/models">复制</button></div>
+          <div class="endpoint"><span class="method get">GET</span><code>/healthz</code><button data-copy="/healthz">复制</button></div>
+        </div>
+        <p class="notice">当前版本提供真实健康状态与 API 测试。账号管理、配置写入和实时日志将在独立管理 API 完成后启用，不会伪造可用状态。</p>
+      </section>
+
+      <section class="page" id="page-accounts">
+        <div class="empty-card"><div class="empty-icon">◉</div><h2>账号管理</h2><p>账号池管理接口尚未接入。当前不会把 userToken 暴露给前端。</p><span class="status-pill">等待安全管理 API</span></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="empty-card"><div class="empty-icon">⚙</div><h2>运行配置</h2><p>配置读取与写入需要白名单校验、原子持久化和受控重启。此页面暂不提供虚假的保存按钮。</p><span class="status-pill">等待配置管理 API</span></div>
+      </section>
+
+      <section class="page" id="page-logs">
+        <div class="empty-card"><div class="empty-icon">≋</div><h2>运行日志</h2><p>实时日志将在脱敏、限量和断线恢复机制完成后开放。</p><span class="status-pill">等待日志流 API</span></div>
+      </section>
+
+      <section class="page" id="page-playground">
+        <div class="playground-grid">
+          <div class="panel request-panel">
+            <div class="section-head"><div><div class="eyebrow">REQUEST</div><h2>请求参数</h2></div><span class="status-pill">OpenAI</span></div>
+            <label for="api-key">API Key <small>仅保存在当前页面内存</small></label>
+            <input id="api-key" type="password" autocomplete="off" placeholder="API_KEY（未设置时可留空）">
+            <label for="model">模型</label>
+            <input id="model" value="deepseek-flash" autocomplete="off">
+            <label for="prompt">提示词</label>
+            <textarea id="prompt" rows="5" placeholder="输入一条测试消息…">你好，请用一句话介绍自己。</textarea>
+            <label class="check"><input id="stream" type="checkbox" checked> 流式输出（SSE）</label>
+            <button id="send" class="primary-button" type="button">发送请求 <span>↗</span></button>
+          </div>
+          <div class="panel response-panel">
+            <div class="section-head"><div><div class="eyebrow">RESPONSE</div><h2>响应结果</h2></div><button id="clear-output" class="text-button" type="button">清空</button></div>
+            <div id="response-meta" class="response-meta">等待请求</div>
+            <pre id="response-output" aria-live="polite">响应内容将在这里显示。</pre>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer"><span>fuckds · Android WebUI Preview</span><span>本地运行 · 不依赖公网前端</span></footer>
+    </main>
+  </div>
+  <nav class="bottom-nav" aria-label="移动端导航">
+    <button class="active" data-page="home"><span>⌂</span>概览</button>
+    <button data-page="accounts"><span>◉</span>账号</button>
+    <button data-page="settings"><span>⚙</span>配置</button>
+    <button data-page="logs"><span>≋</span>日志</button>
+    <button data-page="playground"><span>⌘</span>测试</button>
+  </nav>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
