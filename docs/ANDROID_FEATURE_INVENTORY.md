@@ -61,11 +61,11 @@ No Android work may rename, remove, proxy differently, or alter the request/resp
 | UI area | Required real functionality | Current state |
 |---|---|---|
 | Overview | Health, engine, uptime, PID, version, account/queue/engine diagnostics where actually available | Initial health view only |
-| Accounts | View masked accounts and status; add/replace/remove tokens; validate login; show per-account cooldown/failover state where engine provides it | Not connected |
+| Accounts | View masked accounts and status; add/replace/remove tokens; validate login; show per-account cooldown/failover state where engine provides it | Connected through authenticated admin API; saved changes require restart |
 | Engine | Show selected engine and actual readiness; preserve Direct/Browser/Auto choices; clearly explain Android compatibility gates | Not connected |
-| Settings | Read current effective config; edit only whitelisted settings; validate; persist safely; restart/reload through host lifecycle | Not connected |
-| Logs | Bounded recent logs, level filtering, secret redaction, live updates, pause/resume, reconnect and clear-view (not delete source logs) | Not connected |
-| API Playground | OpenAI chat/completions and Anthropic Messages; stream/non-stream; thinking/tools/image inputs only when supported; status, headers and raw/parsed output | OpenAI chat MVP only |
+| Settings | Read current effective config; edit only whitelisted settings; validate; persist safely; restart/reload through host lifecycle | Whitelisted config read/write implemented; restart still pending Android host |
+| Logs | Bounded recent logs, level filtering, secret redaction, live updates, pause/resume, reconnect and clear-view (not delete source logs) | 500-entry in-memory redacted buffer + authenticated list/SSE; mobile viewer implemented |
+| API Playground | OpenAI chat/completions and Anthropic Messages; stream/non-stream; thinking/tools/image inputs only when supported; status, headers and raw/parsed output | All existing OpenAI/Anthropic endpoints exposed through editable raw JSON; SSE output supported |
 | Diagnostics | Health snapshots, runtime capabilities, storage checks, engine-specific diagnostics and exportable redacted report | Not connected |
 | Service control | Start/stop/restart/status through Android foreground service; startup and crash recovery | Not implemented |
 | API compatibility | Display/copy existing endpoints and preserve all existing client-facing behavior | Endpoint shortcuts only |
