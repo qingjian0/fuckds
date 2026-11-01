@@ -61,3 +61,32 @@ Use fogtape/nodejs-mobile Node 24.22.1 as the leading feasibility candidate, not
 7. Passes the existing API compatibility suite on desktop and a reduced real-device smoke suite on Android.
 
 Do not publish an APK or claim Direct mode support until these checks pass on an Android ARM64 device.
+
+## Reproducible Node 24 candidate details
+
+The candidate was inspected at recipe branch commit `d4aedf536d035bf4eeab7a7a6e18b73d154d0ea5`. Its `upstream-base.txt` pins official Node.js v24.22.1 at `ce7aaf1cee78b8cf0ce17364260535c418d3ed26`. The recipe reconstructs the source by applying an ordered patch series, overlaying mobile-only files and checking `expected-tree.txt` before a build. The Android build helper supports a single `arm64` target and outputs `out_android/arm64-v8a/libnode.so`.
+
+The documented Android build prerequisites are Linux, Android NDK r27d (27.3.13750724), Python 3.12/3.13 with setuptools, build-essential and multilib. This is a source build, not a prebuilt artifact dependency. A CI job can pin the recipe commit, run `scripts/prepare.sh`, build only ARM64, and upload the library plus generated Node headers as a workflow artifact.
+
+The recipe's own Android test app demonstrates the supported embedding path:
+- load `libnode.so` and an app JNI bridge;
+- call `node::Start(argc, argv)` on a dedicated Java thread;
+- set app-private working directory and environment before Node starts;
+- copy the JS project into app-private storage;
+- redirect native stdout/stderr to Android logging.
+
+This is a concrete integration reference, but it is a third-party recipe and must still pass our independent source/license review and runtime smoke tests. Pinning the commit does not itself constitute approval.
+
+### PoW adapter direction without changing the PoW algorithm or desktop engine
+
+The existing Go package `pow` already exports `SolvePow`, `SolvePowWorkers` and `Warmup`. The existing `cmd/powd` executable is only a JSON-lines process wrapper around that package. This separation permits an Android-only in-process wrapper to call the same Go solver without changing its algorithm.
+
+Preferred implementation experiment:
+1. Build the existing Go `pow` package for Android ARM64 as a C archive (or shared library if the NDK/Go toolchain requires it).
+2. Expose a narrow N-API addon that calls the Go solver asynchronously.
+3. Load it through an Android-only Node preload.
+4. In that preload, intercept only the existing `child_process.spawn(<configured ds-pow path>)` call and provide a compatible in-memory stdin/stdout/stderr child-process facade backed by the native addon. Call `syncBuiltinESMExports()` so the existing ESM named import sees the adapter.
+5. Leave every other child-process operation untouched; unsupported operations must fail clearly rather than being silently emulated.
+6. Run the existing `src/direct/pow.mjs` request/response protocol tests and Go known-answer tests on desktop and Android.
+
+This approach keeps `src/direct/pow.mjs`, `cmd/powd`, and the DeepSeekHashV1 implementation unchanged. It is an experiment until the N-API ABI, cancellation, stream semantics and device performance are verified.
