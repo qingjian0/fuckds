@@ -52,7 +52,19 @@
       <section class="page" id="page-accounts">
         <div class="section-head"><div><div class="eyebrow">ACCOUNT POOL</div><h2>账号运行状态</h2></div><span class="muted">只读状态 · Token 已脱敏</span></div>
         <div id="account-summary" class="account-list"><div class="empty-card"><p>正在读取账号状态…</p></div></div>
-        <p class="notice">此处读取原有 /healthz 提供的运行状态。新增、替换、删除和校验账号需要独立管理 API，完成安全鉴权前不会开放写入操作。</p>
+        <section class="panel admin-panel">
+          <div class="section-head"><div><div class="eyebrow">ADMIN ACCESS</div><h2>管理授权</h2></div><span class="status-pill">独立管理密钥</span></div>
+          <label for="admin-key">ADMIN_API_KEY <small>仅保存在当前页面内存</small></label>
+          <input id="admin-key" type="password" autocomplete="off" placeholder="输入 Android 宿主提供的管理密钥">
+          <button id="admin-unlock" class="primary-button" type="button">验证管理权限</button>
+          <div id="account-actions" hidden>
+            <label for="account-token-input">userToken <small>可逐行粘贴多个账号</small></label>
+            <textarea id="account-token-input" rows="3" autocomplete="off" placeholder="粘贴 userToken；每行一个"></textarea>
+            <div class="action-row"><button id="account-add" type="button">追加账号</button><button id="account-replace" type="button">替换账号池</button><button id="account-check" type="button">校验账号池</button></div>
+            <p class="notice">校验会通过现有引擎发起一次真实请求，可能消耗账号额度。账号变更保存后需要重启服务才会被当前引擎加载。</p>
+          </div>
+        </section>
+        <p class="notice">管理 API 只允许本机访问，使用独立密钥，不复用客户端 API_KEY。userToken 只在提交时发送，界面仅显示脱敏值。</p>
       </section>
 
       <section class="page" id="page-settings">
