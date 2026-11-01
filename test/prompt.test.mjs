@@ -12,10 +12,10 @@ test('单轮：system + user，按 ## 段落拼接', () => {
     ],
   });
 
-  assert.ok(prompt.startsWith('# MESSAGES:\n## SYSTEM_ROLE_MESSAGE:\n'));
+  assert.ok(prompt.startsWith('# MESSAGES:\n## SYSTEM_ROLE_MESSAGES\n'));
   assert.ok(prompt.includes(SPECIAL_TOKENS_HEADER));
   assert.ok(prompt.includes('你是一个简洁的助手'));
-  assert.ok(prompt.includes('## USER_ROLE_MESSAGE:\n你好'));
+  assert.ok(prompt.includes('## USER_ROLE_MESSAGES:\n你好'));
   assert.ok(!prompt.includes('## ASSISTANT_ROLE_MESSAGES:'));
   // 不该出现空白 section
   assert.ok(!/\n{3,}/.test(prompt));
@@ -31,14 +31,14 @@ test('多轮：assistant 段落用 ## ASSISTANT_ROLE_MESSAGES', () => {
   });
 
   const order = [
-    '## USER_ROLE_MESSAGE:\n第一步',
+    '## USER_ROLE_MESSAGES:\n第一步',
     '## ASSISTANT_ROLE_MESSAGES:\n第一步的回答',
-    '## USER_ROLE_MESSAGE:\n第二步',
+    '## USER_ROLE_MESSAGES:\n第二步',
   ].map((needle) => prompt.indexOf(needle));
 
   assert.ok(order.every((i) => i >= 0), `段落缺失: ${order}`);
   assert.deepEqual([...order].sort((a, b) => a - b), order, '段落顺序不对');
-  assert.ok(prompt.trimEnd().endsWith('## USER_ROLE_MESSAGE:\n第二步'));
+  assert.ok(prompt.trimEnd().endsWith('## USER_ROLE_MESSAGES:\n第二步'));
 });
 
 test('tools：TOOL_FUNCTIONS 每行一个 JSON', () => {
@@ -59,14 +59,14 @@ test('tools：TOOL_FUNCTIONS 每行一个 JSON', () => {
 
   assert.deepEqual(toolNames, ['exec_shell', 'read_file']);
   assert.ok(prompt.includes('## TOOL_FUNCTIONS:'));
-  const section = prompt.slice(prompt.indexOf('## TOOL_FUNCTIONS:'), prompt.indexOf('## USER_ROLE_MESSAGE:'));
+  const section = prompt.slice(prompt.indexOf('## TOOL_FUNCTIONS:'), prompt.indexOf('## USER_ROLE_MESSAGES:'));
   const lines = section.split('\n').filter((l) => l.startsWith('{"name"'));
   assert.equal(lines.length, 2);
   const first = JSON.parse(lines[0]);
   assert.equal(first.name, 'exec_shell');
   assert.equal(first.parameters.type, 'object');
   // TOOL_FUNCTIONS 必须在第一段 USER 之前
-  assert.ok(prompt.indexOf('## TOOL_FUNCTIONS:') < prompt.indexOf('## USER_ROLE_MESSAGE:'));
+  assert.ok(prompt.indexOf('## TOOL_FUNCTIONS:') < prompt.indexOf('## USER_ROLE_MESSAGES:'));
 });
 
 test('tool 结果单独成段，RESULT 不出现在 assistant 段落里', () => {
@@ -84,10 +84,10 @@ test('tool 结果单独成段，RESULT 不出现在 assistant 段落里', () => 
   });
 
   const assistantAt = prompt.indexOf('## ASSISTANT_ROLE_MESSAGES:');
-  const toolResultAt = prompt.indexOf('< |  | TOOL_CALL_RESULT | | >:');
+  const toolResultAt = prompt.indexOf('## TOOL_RESULT_MESSAGES:');
   const doAt = prompt.lastIndexOf('DO:{"name":"exec_shell"');
-  const resultAt = prompt.lastIndexOf('{\"name\":\"exec_shell\",\"result\":');
-  const nextUserAt = prompt.lastIndexOf('## USER_ROLE_MESSAGE:');
+  const resultAt = prompt.lastIndexOf('RESULT:{');
+  const nextUserAt = prompt.lastIndexOf('## USER_ROLE_MESSAGES:');
 
   assert.ok(assistantAt > 0 && doAt > assistantAt && toolResultAt > doAt);
   // 历史里的调用只允许 DO 块，不能退回 DSML / <tool_call> 等原生格式
@@ -100,7 +100,7 @@ test('tool 结果单独成段，RESULT 不出现在 assistant 段落里', () => 
   const assistantBody = prompt.slice(assistantAt, toolResultAt);
   assert.ok(!assistantBody.includes('RESULT'), `assistant 段落混入了 RESULT:\n${assistantBody}`);
 
-  const result = JSON.parse(prompt.slice(resultAt, prompt.indexOf('\n', resultAt)));
+  const result = JSON.parse(prompt.slice(resultAt + 'RESULT:'.length, prompt.indexOf('\n', resultAt)));
   assert.equal(result.name, 'exec_shell');
   assert.equal(result.result, 'Linux ubuntu 6.1');
 });
@@ -122,11 +122,11 @@ test('连续多个 tool 结果合并到同一个 TOOL_RESULT 段', () => {
     ],
   });
 
-  const occurrences = prompt.match(/< |  | TOOL_CALL_RESULT | | >:/g) ?? [];
+  const occurrences = prompt.match(/## TOOL_RESULT_MESSAGES:/g) ?? [];
   assert.equal(occurrences.length, 1);
   assert.ok(prompt.includes('RESULT:{"name":"b","result":"结果 B"}'));
   // 最后一段是工具结果时，段尾要有「直接回答」提示
-  assert.match(prompt, /SYSTEM_ROLE_MESSAGES:注意不要输出其他工具调用token/);
+  assert.match(prompt, /以上结果由系统注入/);
 });
 
 test('systemExtra 追加在 SYSTEM 段末尾', () => {
@@ -134,7 +134,7 @@ test('systemExtra 追加在 SYSTEM 段末尾', () => {
     messages: [{ role: 'user', content: '你好' }],
     systemExtra: '额外约束：不要输出 RESULT。',
   });
-  assert.ok(prompt.indexOf('额外约束：不要输出 RESULT。') < prompt.indexOf('## USER_ROLE_MESSAGE:'));
+  assert.ok(prompt.indexOf('额外约束：不要输出 RESULT。') < prompt.indexOf('## USER_ROLE_MESSAGES:'));
   assert.ok(prompt.includes('额外约束'));
 });
 
@@ -175,7 +175,7 @@ test('空 messages 报错', () => {
 
 test('协议声明：只教 DO，不展示 DSML 语法，也不恐吓用户', () => {
   assert.match(SPECIAL_TOKENS_HEADER, /DO:\{"name":/);
-  assert.ok(SPECIAL_TOKENS_HEADER.includes('禁止输出< | | DSML | | >'));
+  assert.match(SPECIAL_TOKENS_HEADER, /不要输出 DSML、XML/);
   assert.ok(!SPECIAL_TOKENS_HEADER.includes('封禁'));
   // 只说不许用，不展示任何原生格式的语法
   assert.ok(!SPECIAL_TOKENS_HEADER.includes('<|DSML|'));
