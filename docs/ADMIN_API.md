@@ -20,6 +20,10 @@ If the key is unset or shorter than 32 bytes, all management routes return `503 
 |---|---|---|
 | GET | `/admin/status` | Engine status and process uptime |
 | GET | `/admin/accounts` | Masked saved account list and runtime state |
+| GET | `/admin/config` | Read whitelisted effective settings |
+| PATCH | `/admin/config` | Validate and atomically update whitelisted `.env` settings |
+| GET | `/admin/logs` | Read the bounded redacted in-memory log buffer |
+| GET | `/admin/logs/stream` | Subscribe to live log entries using SSE |
 | POST | `/admin/accounts` | Add, replace or remove saved tokens |
 | POST | `/admin/accounts/check` | Verify Browser login or send a Direct engine probe |
 
@@ -37,4 +41,8 @@ Account changes write the existing `data/auth.json` schema and return `restartRe
 - The admin key is distinct from the client-facing `API_KEY`.
 - No arbitrary file path or engine-internal mutation endpoint is exposed.
 
-The API intentionally does not yet expose configuration writes, log streaming or service restart. Those require the Android host lifecycle and dedicated persistence/log adapters; they must not be faked by the WebUI.
+Configuration writes accept only existing non-secret settings (engine, thinking/search toggles, concurrency, timeouts, overflow controls, Browser viewport/locale and related runtime values). Values are validated, unknown keys are rejected, existing .env comments/unknown keys are preserved, and the file is replaced atomically with restrictive permissions. Changes are restart-required; the active engine is never mutated in place. Environment variables supplied externally still take precedence.
+
+The logger is wrapped at process startup with a 500-entry in-memory ring buffer. It captures only levels enabled by the configured logger, redacts configured tokens/API keys and common Bearer/secret fields, and supports incremental reads plus SSE. Clearing the UI only clears the view; it does not delete server-side logs.
+
+The API still does not expose arbitrary file access or service restart. Restart remains the responsibility of the Android foreground-service host; it must not be faked by the WebUI.
