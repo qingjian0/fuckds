@@ -1,4 +1,6 @@
 import http from 'node:http';
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 import { ApiError } from './errors.mjs';
 import { createChatRunner } from './chat-runner.mjs';
@@ -63,6 +65,31 @@ export function createServer({ config, logger, web }) {
           ...web.status(),
           version: 1,
         });
+      }
+
+      if (req.method === 'GET' && (url.pathname === '/app' || url.pathname === '/app/' || url.pathname === '/app/app.css' || url.pathname === '/app/app.js')) {
+        const assets = {
+          '/app': ['index.html', 'text/html; charset=utf-8'],
+          '/app/': ['index.html', 'text/html; charset=utf-8'],
+          '/app/app.css': ['app.css', 'text/css; charset=utf-8'],
+          '/app/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+        };
+        const [file, contentType] = assets[url.pathname];
+        try {
+          const body = await readFile(path.join(config.rootDir, 'web', file));
+          res.writeHead(200, {
+            'Content-Type': contentType,
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'no-referrer',
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+          });
+          res.end(body);
+          return;
+        } catch (err) {
+          log.error('读取 WebUI 资源失败:', err.message);
+          return sendJson(res, 500, { error: { message: 'WebUI 资源不可用', type: 'server_error' } });
+        }
       }
 
       if (req.method === 'GET' && url.pathname === '/') {
