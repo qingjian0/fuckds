@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createServer } from '../src/server.mjs';
+import { createServer, landingPage } from '../src/server.mjs';
 import { createLogger } from '../src/logger.mjs';
 import { makeConfig } from './helpers/browser.mjs';
 
@@ -717,4 +717,14 @@ test('流式：原生 <|tool…|> token 不会出现在 content 增量里', asyn
     assert.equal(calls.length, 1);
     assert.equal(calls[0].function.name, 'exec_shell');
   });
+});
+
+
+test('landing page never embeds configured API keys', () => {
+  const secret = 'sensitive-admin-api-key-should-not-leak';
+  const config = makeConfig({ API_KEY: secret });
+  const html = landingPage(config);
+  assert.ok(!html.includes(secret));
+  assert.match(html, /Bearer YOUR_API_KEY/);
+  assert.match(html, /x-api-key: YOUR_API_KEY/);
 });
