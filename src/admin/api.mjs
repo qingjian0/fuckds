@@ -55,7 +55,7 @@ export function createAdminApi({ config, web, adminKey = '' }) {
           return sendJson(res, result.ok ? 200 : 422, { ...result, engine: web.status().engine, method: 'login_check' });
         }
         const result = await web.chat({
-          prompt: '# MESSAGES:\\n## USER_ROLE_MESSAGES:\\n只回复：ok',
+          prompt: '# MESSAGES:\n## USER_ROLE_MESSAGES:\n只回复：ok',
           thinking: false,
           search: false,
         });
@@ -146,7 +146,7 @@ export function createAdminApi({ config, web, adminKey = '' }) {
     }
     const temp = `${config.authFile}.${process.pid}.tmp`;
     try {
-      fs.writeFileSync(temp, `${JSON.stringify({ token: '', tokens: [], savedAt: new Date().toISOString() }, null, 2)}\\n`, { mode: 0o600 });
+      fs.writeFileSync(temp, `${JSON.stringify({ token: '', tokens: [], savedAt: new Date().toISOString() }, null, 2)}\n`, { mode: 0o600 });
       fs.chmodSync(temp, 0o600);
       fs.renameSync(temp, config.authFile);
     } finally {
@@ -185,7 +185,7 @@ function isAllowedOrigin(req) {
 }
 
 function hasValidBearer(req, expectedValue) {
-  const match = /^Bearer\\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
   if (!match) return false;
   const expected = Buffer.from(expectedValue);
   const actual = Buffer.from(match[1]);
