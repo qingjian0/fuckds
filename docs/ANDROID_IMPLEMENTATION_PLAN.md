@@ -31,12 +31,12 @@ Exit gate: frontend build is reproducible; responsive smoke checks at 360dp, 390
 ### P2 — Android host and runtime feasibility
 - Add Kotlin Android application skeleton and WebView host.
 - Add foreground service and notification-backed lifecycle controls.
-- Decide and pin embedded Node runtime only after Android ARM64 prototype demonstrates Node >=20.11 compatibility and required Node APIs.
-- Package app-private writable data directory and bundled read-only assets.
+- Evaluate the pinned Node 24.22.1 Android runtime candidate documented in ANDROID_RUNTIME_SPIKE.md; verify source provenance, release checksum and license before adoption.
+- Package app-private writable data directory and bundled read-only assets; set TMPDIR/HOME before Node initialization.
 - Validate local origin, cleartext policy, WebView navigation allowlist, process shutdown and restart.
-- Cross-compile Go PoW daemon for Android ARM64 with CGO_ENABLED=0 and run on a physical ARM64 device/emulator.
+- Replace the Android PoW child-process backend with an in-process JNI/N-API binding or benchmarked WASM implementation. Keep the desktop Go subprocess backend unchanged; Android child_process.spawn() is not assumed to work.
 
-Exit gate: APK starts embedded Node, /healthz responds, Direct PoW works on ARM64, WebView loads the local UI, service survives Activity recreation.
+Exit gate: APK starts embedded Node, /healthz responds, the Android in-process PoW backend passes known-answer and performance tests on ARM64, WebView loads the local UI, service survives Activity recreation.
 
 ### P3 — Core management operations
 - Status/diagnostics read model.
