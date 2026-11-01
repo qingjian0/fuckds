@@ -6,7 +6,7 @@ import { loadTokens, maskToken, normalizeUserToken, saveTokens } from '../auth.m
 
 const MAX_ADMIN_BODY_BYTES = 64 * 1024;
 
-export function createAdminApi({ config, web, adminKey = '' }) {
+export function createAdminApi({ config, web, adminKey = '', logBuffer = null }) {
   let restartRequired = false;
   let configOverrides = {};
   async function handle(req, res, url) {
@@ -70,6 +70,42 @@ export function createAdminApi({ config, web, adminKey = '' }) {
       } catch (err) {
         return sendJson(res, err.status || 400, { error: { code: err.code || 'invalid_config', message: err.message } });
       }
+    }
+
+    if (req.method === 'GET' && url.pathname === '/admin/logs') {
+      if (!logBuffer) return sendJson(res, 503, { error: { code: 'logs_unavailable', message: '当前启动方式未启用内存日志缓冲' } });
+      const after = Math.max(0, Number(url.searchParams.get('after') || 0));
+      const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit') || 100)));
+      const level = url.searchParams.get('level') || 'all';
+      if (!['all', 'error', 'warn', 'info', 'debug', 'trace'].includes(level)) {
+        return sendJson(res, 400, { error: { code: 'invalid_log_level', message: '日志级别无效' } });
+      }
+      const entries = logBuffer.list({ after, limit, level });
+      return sendJson(res, 200, { entries, nextAfter: entries.at(-1)?.id || after });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/admin/logs/stream') {
+      if (!logBuffer) return sendJson(res, 503, { error: { code: 'logs_unavailable', message: '当前启动方式未启用内存日志缓冲' } });
+      const after = Math.max(0, Number(url.searchParams.get('after') || 0));
+      const level = url.searchParams.get('level') || 'all';
+      if (!['all', 'error', 'warn', 'info', 'debug', 'trace'].includes(level)) {
+        return sendJson(res, 400, { error: { code: 'invalid_log_level', message: '日志级别无效' } });
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      const writeEntry = (entry) => {
+        if (entry.id <= after || (level !== 'all' && entry.level !== level)) return;
+        res.write('id: ' + entry.id + '\nevent: log\ndata: ' + JSON.stringify(entry) + '\n\n');
+      };
+      const unsubscribe = logBuffer.subscribe(writeEntry);
+      for (const entry of logBuffer.list({ after, limit: 200, level })) writeEntry(entry);
+      res.write(': connected\n\n');
+      res.on('close', unsubscribe);
+      return;
     }
 
     if (req.method === 'GET' && url.pathname === '/admin/accounts') {
