@@ -1,4 +1,4 @@
-const SECRET_FIELD = /token|authorization|api[_-]?key|cookie|secret|password/i;
+const LEVEL_ORDER = { error: 0, warn: 1, info: 2, debug: 3, trace: 4 };\nconst SECRET_FIELD = /token|authorization|api[_-]?key|cookie|secret|password/i;
 const BEARER_VALUE = /\\bBearer\\s+[A-Za-z0-9._~+/-]{12,}/gi;
 const TOKEN_ASSIGNMENT = /\\b(userToken|access[_-]?token|api[_-]?key|authorization|cookie|secret|password)\\s*([:=])\\s*([^,\\s;]+)/gi;
 
