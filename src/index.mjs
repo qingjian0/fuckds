@@ -1,13 +1,15 @@
 import { loadConfig } from './config.mjs';
 import { createLogger } from './logger.mjs';
+import { createLogBuffer, createBufferedLogger } from './admin/log-buffer.mjs';
 import { createEngine } from './engine.mjs';
 import { createServer } from './server.mjs';
 
 const config = loadConfig();
-const logger = createLogger(config.logLevel);
+const logBuffer = createLogBuffer({ secrets: [...config.deepseek.tokens, config.server.apiKey, process.env.ADMIN_API_KEY] });
+const logger = createBufferedLogger(createLogger(config.logLevel), logBuffer);
 
 const web = createEngine({ config, logger });
-const server = createServer({ config, logger, web });
+const server = createServer({ config, logger, web, logBuffer });
 
 const shutdown = async (signal) => {
   logger.info(`收到 ${signal}，正在关闭…`);
