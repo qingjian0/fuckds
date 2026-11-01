@@ -59,6 +59,8 @@ export function createServer({ config, logger, web, adminKey = process.env.ADMIN
     });
 
     try {
+      if (url.pathname.startsWith('/admin/')) return await admin.handle(req, res, url);
+
       if (req.method === 'GET' && (url.pathname === '/healthz' || url.pathname === '/health')) {
         return sendJson(res, 200, {
           ok: true,
