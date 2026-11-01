@@ -350,7 +350,7 @@ function readEnvFile(file) {
   if (stat.size > 1024 * 1024) throw new Error('.env 文件超过 1 MB');
   const text = fs.readFileSync(file, 'utf8');
   const values = {};
-  for (const raw of text.split(/\\r?\\n/)) {
+  for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
     const eq = line.indexOf('=');
@@ -376,17 +376,17 @@ function writeEnvPatch(rootDir, updates) {
     }
     envUpdates[envName] = String(value);
   }
-  const lines = text ? text.split(/\\r?\\n/) : [];
+  const lines = text ? text.split(/\r?\n/) : [];
   for (const [key, value] of Object.entries(envUpdates)) {
-    const index = lines.findIndex(line => new RegExp(`^\\\\s*${key}\\\\s*=`).test(line));
+    const index = lines.findIndex(line => new RegExp(`^\\s*${key}\\s*=`).test(line));
     if (index >= 0) lines[index] = `${key}=${value}`;
     else lines.push(`${key}=${value}`);
   }
-  const output = `${lines.join('\\n').replace(/\\n*$/, '')}\\n`;
+  const output = `${lines.join('\n').replace(/\n*$/, '')}\n`;
   fs.mkdirSync(rootDir, { recursive: true });
-  const temp = `${file}.${process.pid}.tmp`;
+  const temp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(temp, output, { mode: 0o600, flag: 'w' });
+    fs.writeFileSync(temp, output, { mode: 0o600, flag: 'wx' });
     fs.chmodSync(temp, 0o600);
     fs.renameSync(temp, file);
   } finally {
