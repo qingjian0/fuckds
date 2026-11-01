@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 
 import { ApiError } from './errors.mjs';
+import { createAdminApi } from './admin/api.mjs';
 import { createChatRunner } from './chat-runner.mjs';
 import { createAnthropicHandler } from './anthropic/handler.mjs';
 import { anthropicErrorPayload } from './anthropic/response.mjs';
@@ -19,7 +20,7 @@ import { reconcileStreamedText } from './openai/tool-text.mjs';
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
-export function createServer({ config, logger, web }) {
+export function createServer({ config, logger, web, adminKey = process.env.ADMIN_API_KEY || '' }) {
   const log = logger.child('http');
 
   const server = http.createServer((req, res) => {
@@ -33,6 +34,7 @@ export function createServer({ config, logger, web }) {
   /** 两个协议共用同一套执行逻辑（防自造结果 / 超长转附件） */
   const runChat = createChatRunner({ config, log, web });
   const anthropic = createAnthropicHandler({ config, log, runChat, sendJson });
+  const admin = createAdminApi({ config, web, adminKey });
 
   async function handle(req, res) {
     const started = Date.now();
